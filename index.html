@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>班級小宇宙 | 作業獎勵管理平台</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- 引入 SheetJS 解析 Excel (.xlsx / .csv) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
@@ -15,7 +17,7 @@
 </head>
 <body class="p-2 md:p-6 text-gray-800">
 
-  <!-- 雲端狀態與設定條 -->
+  <!-- 雲端狀態條 -->
   <div id="cloud-bar" class="mb-4 p-3 bg-amber-500 text-white rounded-xl flex flex-col sm:flex-row justify-between items-center text-sm gap-2 shadow">
     <span id="cloud-status">⚠️ 目前為「單機離線模式」（更換電腦資料不會同步）</span>
     <div class="flex gap-2">
@@ -23,23 +25,23 @@
         🧹 重設/清除舊暫存
       </button>
       <button onclick="openFirebaseModal()" class="bg-white text-amber-800 px-3 py-1 rounded-lg font-bold hover:bg-amber-100 transition">
-        ⚙️ 設定跨電腦雲端金鑰 (Firebase)
+        ⚙️ 設定 Firebase 雲端金鑰
       </button>
     </div>
   </div>
 
-  <!-- 頂部標題與頁籤切換 -->
+  <!-- 頁頭與主選單 -->
   <header class="bg-white rounded-2xl p-4 md:p-6 shadow-sm mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
     <div>
       <h1 class="text-2xl md:text-3xl font-extrabold text-emerald-700 flex items-center gap-2">
         <span>🌱</span> <span id="header-class-name">班級小宇宙</span> | 作業獎勵管理平台
       </h1>
-      <p class="text-xs md:text-sm text-gray-500 mt-1" id="header-subtitle">智慧作業繳交 × 班級銀行（跨電腦即時同步版）</p>
+      <p class="text-xs md:text-sm text-gray-500 mt-1" id="header-subtitle">智慧作業繳交 × 班級銀行</p>
     </div>
     <div class="flex gap-2 w-full md:w-auto">
-      <button onclick="switchTab('submit')" id="tab-submit" class="flex-1 md:flex-none px-4 py-2 rounded-xl bg-emerald-600 text-white font-bold hover:bg-emerald-700">📷 條碼繳交 (前台)</button>
-      <button onclick="switchTab('view')" id="tab-view" class="flex-1 md:flex-none px-4 py-2 rounded-xl bg-amber-500 text-white font-bold hover:bg-amber-600">🐣 學生檢視 (前台)</button>
-      <button onclick="switchTab('admin')" id="tab-admin" class="flex-1 md:flex-none px-4 py-2 rounded-xl bg-slate-800 text-white font-bold hover:bg-slate-900">🔒 教師後台</button>
+      <button onclick="switchTab('submit')" class="flex-1 md:flex-none px-4 py-2 rounded-xl bg-emerald-600 text-white font-bold hover:bg-emerald-700">📷 條碼繳交 (前台)</button>
+      <button onclick="switchTab('view')" class="flex-1 md:flex-none px-4 py-2 rounded-xl bg-amber-500 text-white font-bold hover:bg-amber-600">🐣 學生檢視 (前台)</button>
+      <button onclick="switchTab('admin')" class="flex-1 md:flex-none px-4 py-2 rounded-xl bg-slate-800 text-white font-bold hover:bg-slate-900">🔒 教師後台</button>
     </div>
   </header>
 
@@ -65,55 +67,39 @@
   <main id="sec-view" class="hidden space-y-6">
     <div class="bg-white rounded-2xl p-6 shadow-sm">
       <div class="flex justify-between items-center mb-4">
-        <h2 class="text-xl font-bold text-gray-800">🏆 班級財富與獎勵排行榜</h2>
+        <h2 class="text-xl font-bold text-gray-800">🏆 班級財富排行榜</h2>
         <span id="currency-tag" class="bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-xs font-bold">貨幣：💰元</span>
       </div>
-      <div id="student-cards-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-        <!-- 學生卡片動態渲染 -->
-      </div>
+      <div id="student-cards-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4"></div>
     </div>
   </main>
 
   <!-- 區塊 3: 教師後台 -->
   <main id="sec-admin" class="hidden space-y-6">
     <div class="bg-white rounded-2xl p-6 shadow-sm border-t-4 border-slate-800">
-      <!-- 後台導覽選單 -->
       <div class="flex border-b mb-6 overflow-x-auto gap-2">
         <button onclick="switchAdminTab('quick')" id="atab-quick" class="px-4 py-2 font-bold tab-active whitespace-nowrap">📝 課堂快速表揚</button>
-        <button onclick="switchAdminTab('students')" id="atab-students" class="px-4 py-2 font-bold text-gray-500 whitespace-nowrap">👥 學生管理 (含Excel批次匯入)</button>
+        <button onclick="switchAdminTab('students')" id="atab-students" class="px-4 py-2 font-bold text-gray-500 whitespace-nowrap">👥 學生管理 (含Excel匯入)</button>
         <button onclick="switchAdminTab('hw')" id="atab-hw" class="px-4 py-2 font-bold text-gray-500 whitespace-nowrap">📋 作業與規則管理</button>
         <button onclick="switchAdminTab('settings')" id="atab-settings" class="px-4 py-2 font-bold text-gray-500 whitespace-nowrap">⚙️ 班級設定</button>
       </div>
 
-      <!-- 子分頁 1: 課堂快速表揚 -->
+      <!-- 子分頁 1: 課堂表揚 -->
       <div id="asec-quick" class="space-y-6">
         <div class="bg-emerald-50 p-4 rounded-xl border border-emerald-200">
           <h3 class="font-bold text-emerald-800 mb-2">🌟 課堂一鍵給獎勵</h3>
-          <p class="text-xs text-gray-500 mb-3">先選擇學生，再點擊下方快捷按鈕即可即時加發獎勵：</p>
+          <p class="text-xs text-gray-500 mb-3">先選擇學生，再點擊下方快捷按鈕即可發放：</p>
           <div class="mb-4">
-            <label class="block text-xs font-bold text-gray-600 mb-1">選擇受獎學生：</label>
             <select id="admin-quick-student-select" class="p-2 border rounded-lg bg-white w-full sm:w-64 font-bold"></select>
           </div>
           <div id="quick-btn-container" class="flex flex-wrap gap-2"></div>
         </div>
-
-        <div class="max-w-lg border-t pt-4">
-          <h4 class="font-bold text-sm text-gray-700 mb-2">新增快速表揚按鈕：</h4>
-          <div class="flex gap-2">
-            <input type="text" id="new-qbtn-name" placeholder="按鈕名稱 (例：主動幫忙)" class="flex-1 p-2 border rounded-lg text-sm">
-            <input type="number" id="new-qbtn-amount" placeholder="金額" class="w-24 p-2 border rounded-lg text-sm" value="20">
-            <button onclick="addQuickButton()" class="px-4 py-2 bg-emerald-600 text-white font-bold rounded-lg text-sm hover:bg-emerald-700">新增按鈕</button>
-          </div>
-          <h4 class="font-bold text-sm text-gray-700 mt-4 mb-2">管理現有表揚按鈕：</h4>
-          <ul id="quick-btn-manage-list" class="space-y-2 text-sm pt-1"></ul>
-        </div>
       </div>
 
-      <!-- 子分頁 2: 學生管理 (包含新增、編輯、刪除、Excel批次匯入) -->
+      <!-- 子分頁 2: 學生管理 -->
       <div id="asec-students" class="hidden space-y-6">
-        
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <!-- 單一新增學生 -->
+          <!-- 單一新增 -->
           <div class="bg-gray-50 p-4 rounded-xl border space-y-3">
             <h4 class="font-bold text-sm text-gray-700">➕ 新增單一學生</h4>
             <div class="flex gap-2">
@@ -123,13 +109,13 @@
             </div>
           </div>
 
-          <!-- Excel/CSV 批次上傳或貼上 -->
+          <!-- Excel 匯入 -->
           <div class="bg-emerald-50 p-4 rounded-xl border border-emerald-200 space-y-3">
             <h4 class="font-bold text-sm text-emerald-800">📊 Excel 學生名單批次匯入</h4>
-            <p class="text-xs text-gray-500">請貼上 Excel 複製的內容（第一欄座號，第二欄姓名，每行一位）：</p>
-            <textarea id="batch-excel-input" rows="3" class="w-full p-2 border rounded-lg text-xs font-mono" placeholder="1&#10015;張小明&#10;2&#10015;李小華"></textarea>
+            <p class="text-xs text-gray-500">直接貼上 Excel 複製的內容（座號 姓名）：</p>
+            <textarea id="batch-excel-input" rows="3" class="w-full p-2 border rounded-lg text-xs font-mono" placeholder="1  張小明&#10;2  李小華"></textarea>
             <div class="flex justify-between items-center">
-              <input type="file" id="csv-file-input" accept=".csv" onchange="handleCSVUpload(event)" class="text-xs text-gray-500">
+              <input type="file" id="excel-file-input" accept=".xlsx, .xls, .csv" onchange="handleExcelUpload(event)" class="text-xs text-gray-500">
               <button onclick="processBatchInput()" class="px-4 py-2 bg-emerald-600 text-white font-bold rounded-lg text-xs hover:bg-emerald-700">匯入貼上內容</button>
             </div>
           </div>
@@ -137,14 +123,14 @@
 
         <div>
           <div class="flex justify-between items-center mb-3">
-            <h3 class="font-bold text-gray-700">學生名單（點擊「加減分」調整金額，或使用編輯／刪除）</h3>
-            <button onclick="deleteAllStudents()" class="text-xs bg-red-100 text-red-600 px-3 py-1 rounded-lg font-bold hover:bg-red-200">⚠️ 清空全班學生名單</button>
+            <h3 class="font-bold text-gray-700">學生名單</h3>
+            <button onclick="confirmClearAllStudents()" class="text-xs bg-red-100 text-red-600 px-3 py-1 rounded-lg font-bold hover:bg-red-200">⚠️ 清空全班學生名單</button>
           </div>
           <div id="admin-student-list" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3"></div>
         </div>
       </div>
 
-      <!-- 子分頁 3: 作業與規則版本 -->
+      <!-- 子分頁 3: 作業管理 -->
       <div id="asec-hw" class="hidden space-y-4 max-w-lg">
         <h3 class="font-bold text-gray-700">➕ 新增作業項目</h3>
         <div class="space-y-2">
@@ -153,108 +139,113 @@
           <button onclick="addHomework()" class="w-full py-2 bg-emerald-600 text-white font-bold rounded-lg text-sm hover:bg-emerald-700">+ 新增作業規則</button>
         </div>
         <hr class="my-4">
-        <h4 class="font-bold text-sm text-gray-700">管理現有作業規則：</h4>
         <ul id="hw-rule-list" class="space-y-2 text-sm"></ul>
       </div>
 
-      <!-- 子分頁 4: 班級基礎設定 -->
+      <!-- 子分頁 4: 班級設定 -->
       <div id="asec-settings" class="hidden space-y-4 max-w-lg">
         <h3 class="font-bold text-gray-700">基本參數設定</h3>
         <div>
           <label class="block text-sm text-gray-500">班級名稱：</label>
-          <input type="text" id="cfg-class-name" class="w-full p-2 border rounded-lg text-sm" value="班級小宇宙">
+          <input type="text" id="cfg-class-name" class="w-full p-2 border rounded-lg text-sm">
         </div>
         <div>
-          <label class="block text-sm text-gray-500">當前學年度/學期：</label>
-          <input type="text" id="cfg-semester" class="w-full p-2 border rounded-lg text-sm" value="114學年度上學期">
-        </div>
-        <div>
-          <label class="block text-sm text-gray-500">班級貨幣名稱/符號：</label>
-          <input type="text" id="cfg-currency-name" class="w-full p-2 border rounded-lg text-sm" value="💰元" placeholder="例如：🌟星星幣、🌱成長幣">
+          <label class="block text-sm text-gray-500">班級貨幣名稱：</label>
+          <input type="text" id="cfg-currency-name" class="w-full p-2 border rounded-lg text-sm">
         </div>
         <button onclick="saveClassSettings()" class="px-4 py-2 bg-slate-800 text-white rounded-lg font-bold text-sm hover:bg-slate-900">儲存班級設定</button>
       </div>
-
     </div>
   </main>
 
-  <!-- 彈跳視窗 A: Firebase 設定 -->
-  <div id="modal-firebase" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center p-4 z-50">
-    <div class="bg-white rounded-2xl p-6 max-w-lg w-full space-y-4">
-      <h3 class="text-lg font-bold text-gray-800">⚙️ 設定 Firebase 跨電腦同步金鑰</h3>
-      <p class="text-xs text-gray-500">請將 Firebase 的配置語法 (包含 apiKey 與 databaseURL) 貼在下方：</p>
-      <textarea id="firebase-config-input" rows="8" class="w-full p-3 border font-mono text-xs rounded-xl bg-gray-50" placeholder="const firebaseConfig = { ... };"></textarea>
+  <!-- 彈跳視窗 1: 編輯學生姓名 -->
+  <div id="modal-edit-student" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-2xl p-6 max-w-sm w-full space-y-4 shadow-xl">
+      <h3 class="text-lg font-bold text-gray-800">✏️ 編輯學生姓名</h3>
+      <input type="hidden" id="edit-st-id">
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">學生姓名：</label>
+        <input type="text" id="edit-st-name-input" class="w-full p-2 border rounded-lg font-bold text-base">
+      </div>
       <div class="flex justify-end gap-2">
-        <button onclick="closeFirebaseModal()" class="px-4 py-2 bg-gray-200 rounded-xl font-bold text-sm">取消</button>
-        <button onclick="saveFirebaseConfig()" class="px-4 py-2 bg-emerald-600 text-white rounded-xl font-bold text-sm">儲存並連線雲端</button>
+        <button onclick="closeModal('modal-edit-student')" class="px-4 py-2 bg-gray-200 rounded-xl font-bold text-xs">取消</button>
+        <button onclick="saveStudentName()" class="px-4 py-2 bg-emerald-600 text-white rounded-xl font-bold text-xs">儲存變更</button>
       </div>
     </div>
   </div>
 
-  <!-- 彈跳視窗 B: 單人手動加減分 -->
+  <!-- 彈跳視窗 2: 手動加減分 -->
   <div id="modal-adjust" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center p-4 z-50">
-    <div class="bg-white rounded-2xl p-6 max-w-md w-full space-y-4">
+    <div class="bg-white rounded-2xl p-6 max-w-md w-full space-y-4 shadow-xl">
       <h3 id="adjust-modal-title" class="text-lg font-bold text-gray-800">手動調整資產</h3>
       <input type="hidden" id="adjust-student-id">
       <div>
-        <label class="block text-sm text-gray-500">變動金額 (正數為加分，負數為扣分)：</label>
-        <input type="number" id="adjust-amount" class="w-full p-2 border rounded-lg font-bold text-lg" placeholder="例如: 20 或 -20">
+        <label class="block text-sm text-gray-500">變動金額 (正數加分，負數扣分)：</label>
+        <input type="number" id="adjust-amount" class="w-full p-2 border rounded-lg font-bold text-lg" placeholder="例如: 20 或 -10">
       </div>
       <div>
-        <label class="block text-sm text-gray-500">加減分事由說明：</label>
+        <label class="block text-sm text-gray-500">事由說明：</label>
         <input type="text" id="adjust-reason" class="w-full p-2 border rounded-lg text-sm" placeholder="例如：午掃認真、未帶課本">
       </div>
-      <div class="flex justify-end gap-2 pt-2">
-        <button onclick="closeAdjustModal()" class="px-4 py-2 bg-gray-200 rounded-xl font-bold text-sm">取消</button>
-        <button onclick="submitStudentAdjust()" class="px-4 py-2 bg-emerald-600 text-white rounded-xl font-bold text-sm">確認儲存</button>
+      <div class="flex justify-end gap-2">
+        <button onclick="closeModal('modal-adjust')" class="px-4 py-2 bg-gray-200 rounded-xl font-bold text-xs">取消</button>
+        <button onclick="submitStudentAdjust()" class="px-4 py-2 bg-emerald-600 text-white rounded-xl font-bold text-xs">確認儲存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 彈跳視窗 3: Firebase 配置 -->
+  <div id="modal-firebase" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-2xl p-6 max-w-lg w-full space-y-4 shadow-xl">
+      <h3 class="text-lg font-bold text-gray-800">⚙️ 設定 Firebase 跨電腦同步金鑰</h3>
+      <textarea id="firebase-config-input" rows="6" class="w-full p-3 border font-mono text-xs rounded-xl bg-gray-50" placeholder="const firebaseConfig = { ... };"></textarea>
+      <div class="flex justify-end gap-2">
+        <button onclick="closeModal('modal-firebase')" class="px-4 py-2 bg-gray-200 rounded-xl font-bold text-xs">取消</button>
+        <button onclick="saveFirebaseConfig()" class="px-4 py-2 bg-emerald-600 text-white rounded-xl font-bold text-xs">儲存並連線</button>
       </div>
     </div>
   </div>
 
   <script>
-    // 預設資料結構
     let appData = {
       config: { className: "班級小宇宙", semester: "114學年度上學期", currencyName: "💰元" },
       students: {},
-      homeworks: [],
+      homeworks: [
+        { id: 'hw_1', title: '國語習作第1課', reward: 30, version: '預設' }
+      ],
       quickButtons: [
         { id: 'q1', name: '🌟 今日表揚', amount: 50 },
-        { id: 'q2', name: '🧹 掃地認真', amount: 20 },
-        { id: 'q3', name: '📚 作業全交', amount: 30 }
+        { id: 'q2', name: '🧹 掃地認真', amount: 20 }
       ]
     };
 
     let db = null;
     let isAdminUnlocked = false;
 
-    // 清除舊快取
+    function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+    function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+
     function clearLocalCache() {
-      if (confirm("確定要清除本機舊資料庫嗎？這將會重置未備份的紀錄。")) {
+      if (confirm("確定要清除本機暫存嗎？")) {
         localStorage.removeItem('class_space_data');
         location.reload();
       }
     }
 
-    // 主頁籤切換 (含 1102 密碼防護)
     function switchTab(tab) {
       if (tab === 'admin' && !isAdminUnlocked) {
         const pwd = prompt("🔒 請輸入教師後台解鎖密碼：");
         if (pwd === "1102") {
           isAdminUnlocked = true;
-          alert("🔓 密碼正確，歡迎進入教師後台！");
         } else {
-          alert("❌ 密碼錯誤！無法存取後台。");
+          alert("❌ 密碼錯誤！");
           return;
         }
       }
-
-      ['submit', 'view', 'admin'].forEach(t => {
-        document.getElementById('sec-' + t).classList.add('hidden');
-      });
+      ['submit', 'view', 'admin'].forEach(t => document.getElementById('sec-' + t).classList.add('hidden'));
       document.getElementById('sec-' + tab).classList.remove('hidden');
     }
 
-    // 後台子頁籤切換
     function switchAdminTab(atab) {
       ['quick', 'students', 'hw', 'settings'].forEach(t => {
         document.getElementById('asec-' + t).classList.add('hidden');
@@ -264,160 +255,133 @@
       document.getElementById('atab-' + atab).className = "px-4 py-2 font-bold tab-active whitespace-nowrap";
     }
 
-    // 渲染全域 UI
     function renderUI() {
       document.getElementById('header-class-name').innerText = appData.config.className;
-      document.getElementById('header-subtitle').innerText = `${appData.config.semester} | 智慧作業繳交 × 班級銀行`;
       document.getElementById('currency-tag').innerText = `貨幣：${appData.config.currencyName}`;
+      document.getElementById('cfg-class-name').value = appData.config.className;
+      document.getElementById('cfg-currency-name').value = appData.config.currencyName;
 
-      // 1. 前台卡片
+      // 1. 前台排行榜
       const grid = document.getElementById('student-cards-grid');
       grid.innerHTML = '';
       Object.values(appData.students).sort((a,b)=>a.seat-b.seat).forEach(s => {
         grid.innerHTML += `
-          <div class="bg-gray-50 p-4 rounded-xl text-center border border-gray-100 shadow-sm">
+          <div class="bg-gray-50 p-4 rounded-xl text-center border shadow-sm">
             <div class="text-xs text-gray-400 font-bold">${s.seat} 號</div>
             <div class="font-bold text-gray-700">${s.name}</div>
             <div class="text-emerald-600 font-extrabold mt-1">${s.balance} <span class="text-xs">${appData.config.currencyName}</span></div>
-          </div>
-        `;
+          </div>`;
       });
 
-      // 2. 前台條碼選單
+      // 2. 下拉選單
       const stSelect = document.getElementById('submit-student-select');
-      stSelect.innerHTML = '';
-      Object.values(appData.students).sort((a,b)=>a.seat-b.seat).forEach(s => {
-        stSelect.innerHTML += `<option value="${s.id}">${s.seat} 號 ${s.name}</option>`;
-      });
-
-      // 3. 後台快速表揚選單
       const adminStSelect = document.getElementById('admin-quick-student-select');
-      adminStSelect.innerHTML = '';
+      stSelect.innerHTML = ''; adminStSelect.innerHTML = '';
       Object.values(appData.students).sort((a,b)=>a.seat-b.seat).forEach(s => {
-        adminStSelect.innerHTML += `<option value="${s.id}">${s.seat} 號 ${s.name}</option>`;
+        const opt = `<option value="${s.id}">${s.seat} 號 ${s.name}</option>`;
+        stSelect.innerHTML += opt;
+        adminStSelect.innerHTML += opt;
       });
 
-      // 4. 作業選單
+      // 3. 作業選單
       const hwSelect = document.getElementById('submit-hw-select');
       hwSelect.innerHTML = '';
       appData.homeworks.forEach(h => {
-        hwSelect.innerHTML += `<option value="${h.id}">${h.title} ( +${h.reward} ${appData.config.currencyName} | ${h.version} )</option>`;
+        hwSelect.innerHTML += `<option value="${h.id}">${h.title} ( +${h.reward} ${appData.config.currencyName} )</option>`;
       });
 
-      // 5. 表揚按鈕
-      const qContainer = document.getElementById('quick-btn-container');
-      qContainer.innerHTML = '';
-      appData.quickButtons.forEach(q => {
-        qContainer.innerHTML += `
-          <button onclick="triggerQuickReward('${q.name}', ${q.amount})" class="px-3 py-2 bg-white hover:bg-emerald-100 text-emerald-800 rounded-xl font-bold text-sm border border-emerald-300 shadow-sm transition">
-            ${q.name} (+${q.amount})
-          </button>
-        `;
-      });
-
-      // 6. 後台學生清單
+      // 4. 後台學生列表
       const adminStList = document.getElementById('admin-student-list');
       adminStList.innerHTML = '';
       Object.values(appData.students).sort((a,b)=>a.seat-b.seat).forEach(s => {
         adminStList.innerHTML += `
-          <div class="p-3 bg-white border rounded-xl space-y-2 shadow-sm hover:border-emerald-400 transition">
+          <div class="p-3 bg-white border rounded-xl space-y-2 shadow-sm">
             <div class="flex justify-between items-center">
               <div>
                 <span class="text-xs text-gray-400 font-bold">${s.seat}號</span>
                 <span class="font-bold text-gray-800 ml-1">${s.name}</span>
               </div>
               <div class="flex gap-1">
-                <button onclick="editStudentName('${s.id}')" title="編輯姓名" class="text-xs bg-gray-100 px-2 py-1 rounded hover:bg-gray-200">✏️ 編輯</button>
-                <button onclick="deleteStudent('${s.id}')" title="刪除學生" class="text-xs bg-red-50 text-red-600 px-2 py-1 rounded hover:bg-red-100">🗑️ 刪除</button>
+                <button onclick="openEditStudentModal('${s.id}')" class="text-xs bg-gray-100 hover:bg-gray-200 px-2 py-1 rounded">✏️ 編輯</button>
+                <button onclick="deleteStudent('${s.id}')" class="text-xs bg-red-50 text-red-600 hover:bg-red-100 px-2 py-1 rounded">🗑️ 刪除</button>
               </div>
             </div>
             <div onclick="openAdjustModal('${s.id}')" class="p-2 bg-emerald-50 rounded-lg flex justify-between items-center cursor-pointer hover:bg-emerald-100">
               <span class="text-xs font-bold text-emerald-800">資產：${s.balance} ${appData.config.currencyName}</span>
               <span class="text-xs text-emerald-600 font-bold">加減分 ➔</span>
             </div>
-          </div>
-        `;
+          </div>`;
       });
 
-      // 7. 作業清單
-      const hwRuleList = document.getElementById('hw-rule-list');
-      hwRuleList.innerHTML = '';
-      appData.homeworks.forEach(h => {
-        hwRuleList.innerHTML += `
-          <li class="p-2 bg-gray-50 rounded border flex justify-between items-center">
-            <span>📌 <strong>${h.title}</strong>：+${h.reward} ${appData.config.currencyName} <span class="text-xs text-gray-400">(${h.version})</span></span>
-            <div class="flex gap-1">
-              <button onclick="editHomework('${h.id}')" class="text-xs bg-gray-200 px-2 py-1 rounded hover:bg-gray-300">✏️ 編輯</button>
-              <button onclick="deleteHomework('${h.id}')" class="text-xs bg-red-100 text-red-600 px-2 py-1 rounded hover:bg-red-200">🗑️ 刪除</button>
-            </div>
-          </li>
-        `;
-      });
-
-      // 8. 表揚按鈕管理
-      const qManageList = document.getElementById('quick-btn-manage-list');
-      qManageList.innerHTML = '';
+      // 5. 快速表揚按鈕
+      const qContainer = document.getElementById('quick-btn-container');
+      qContainer.innerHTML = '';
       appData.quickButtons.forEach(q => {
-        qManageList.innerHTML += `
-          <li class="p-2 bg-gray-50 rounded border flex justify-between items-center">
-            <span>${q.name} (+${q.amount})</span>
-            <div class="flex gap-1">
-              <button onclick="editQuickButton('${q.id}')" class="text-xs bg-gray-200 px-2 py-1 rounded hover:bg-gray-300">✏️ 編輯</button>
-              <button onclick="deleteQuickButton('${q.id}')" class="text-xs bg-red-100 text-red-600 px-2 py-1 rounded hover:bg-red-200">🗑️ 刪除</button>
-            </div>
-          </li>
-        `;
+        qContainer.innerHTML += `
+          <button onclick="triggerQuickReward('${q.name}', ${q.amount})" class="px-3 py-2 bg-white hover:bg-emerald-100 text-emerald-800 rounded-xl font-bold text-sm border border-emerald-300 shadow-sm">
+            ${q.name} (+${q.amount})
+          </button>`;
       });
     }
 
-    // --- 學生 CRUD 邏輯 ---
-    function addNewStudent() {
-      const seat = parseInt(document.getElementById('new-st-seat').value);
-      const name = document.getElementById('new-st-name').value.trim();
-      if (!seat || !name) return alert('請輸入完整的座號與姓名！');
-      const id = 's' + seat;
-      appData.students[id] = { id, seat, name, balance: appData.students[id]?.balance || 0 };
-      syncData();
-      document.getElementById('new-st-seat').value = '';
-      document.getElementById('new-st-name').value = '';
+    // --- 學生編輯與刪除 ---
+    function openEditStudentModal(stId) {
+      document.getElementById('edit-st-id').value = stId;
+      document.getElementById('edit-st-name-input').value = appData.students[stId].name;
+      openModal('modal-edit-student');
     }
 
-    function editStudentName(stId) {
-      const currentName = appData.students[stId].name;
-      const newName = prompt('請輸入新的學生姓名：', currentName);
-      if (newName && newName.trim() !== '') {
-        appData.students[stId].name = newName.trim();
+    function saveStudentName() {
+      const stId = document.getElementById('edit-st-id').value;
+      const newName = document.getElementById('edit-st-name-input').value.trim();
+      if (newName) {
+        appData.students[stId].name = newName;
+        closeModal('modal-edit-student');
         syncData();
       }
     }
 
     function deleteStudent(stId) {
-      if (confirm(`確定要刪除 ${appData.students[stId].seat}號 ${appData.students[stId].name} 嗎？`)) {
+      const st = appData.students[stId];
+      if (confirm(`確定要刪除 ${st.seat}號 ${st.name} 嗎？`)) {
         delete appData.students[stId];
         syncData();
       }
     }
 
-    function deleteAllStudents() {
-      if (confirm("⚠️ 警告：確定要清空全班學生資料嗎？此動作不可撤銷。")) {
+    function confirmClearAllStudents() {
+      if (confirm("⚠️ 確定要清空全班學生資料嗎？此動作無法撤銷！")) {
         appData.students = {};
         syncData();
       }
     }
 
-    // --- Excel / CSV 批次匯入邏輯 ---
+    function addNewStudent() {
+      const seat = parseInt(document.getElementById('new-st-seat').value);
+      const name = document.getElementById('new-st-name').value.trim();
+      if (!seat || !name) return alert('請填寫座號與姓名！');
+      const id = 's' + seat;
+      appData.students[id] = { id, seat, name, balance: appData.students[id]?.balance || 0 };
+      document.getElementById('new-st-seat').value = '';
+      document.getElementById('new-st-name').value = '';
+      syncData();
+    }
+
+    // --- 全新更強大的批次解析邏輯 ---
     function processBatchInput() {
       const rawText = document.getElementById('batch-excel-input').value.trim();
-      if (!rawText) return alert('請先貼上 Excel 文字內容！');
+      if (!rawText) return alert('⚠️ 輸入框是空的，請先貼上內容！');
 
-      const lines = rawText.split('\n');
       let count = 0;
+      const lines = rawText.split('\n');
+
       lines.forEach(line => {
-        const parts = line.split(/[\t,,\s]+/); // 支援 Tab、逗號、空白分隔
-        if (parts.length >= 2) {
-          const seat = parseInt(parts[0].trim());
-          const name = parts[1].trim();
-          if (!isNaN(seat) && name) {
+        // 使用正則表達式抓取這行裡面的「第一個數字」與「數字後面的第一個非空白文字」
+        const match = line.match(/(\d+)\s*[\t,,\s]+\s*([^\s\t,]+)/);
+        if (match) {
+          const seat = parseInt(match[1]);
+          const name = match[2].trim();
+          if (!isNaN(seat) && name && name !== '姓名' && name !== '座號') {
             const id = 's' + seat;
             appData.students[id] = { id, seat, name, balance: appData.students[id]?.balance || 0 };
             count++;
@@ -425,95 +389,62 @@
         }
       });
 
-      syncData();
-      document.getElementById('batch-excel-input').value = '';
-      alert(`🎉 成功匯入/更新 ${count} 位學生資料！`);
+      if (count > 0) {
+        document.getElementById('batch-excel-input').value = '';
+        syncData();
+        alert(`🎉 成功匯入 ${count} 位學生！`);
+      } else {
+        alert('❌ 找不到有效的「座號」與「姓名」資料。請確定內容包含數字與姓名！');
+      }
     }
 
-    function handleCSVUpload(e) {
+    function handleExcelUpload(e) {
       const file = e.target.files[0];
       if (!file) return;
       const reader = new FileReader();
       reader.onload = function(evt) {
-        document.getElementById('batch-excel-input').value = evt.target.result;
-        processBatchInput();
+        try {
+          const data = new Uint8Array(evt.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+          const rows = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+          
+          let textResult = '';
+          rows.forEach(row => {
+            if (row && row.length >= 2) {
+              textResult += `${row[0]}\t${row[1]}\n`;
+            }
+          });
+          document.getElementById('batch-excel-input').value = textResult;
+          processBatchInput();
+        } catch(err) {
+          alert('解析 Excel 檔案失敗，建議直接複製 Excel 文字並貼上！');
+        }
       };
-      reader.readAsText(file);
+      reader.readAsArrayBuffer(file);
     }
 
-    // --- 作業 CRUD ---
-    function addHomework() {
-      const title = document.getElementById('new-hw-title').value.trim();
-      const reward = parseInt(document.getElementById('new-hw-reward').value);
-      if (!title || isNaN(reward)) return alert('請完整填寫作業名稱與金額！');
-      appData.homeworks.push({ id: 'hw_' + Date.now(), title, reward, version: appData.config.semester });
+    // --- 資產調整與作業加分 ---
+    function openAdjustModal(stId) {
+      document.getElementById('adjust-student-id').value = stId;
+      document.getElementById('adjust-modal-title').innerText = `調整 ${appData.students[stId].name} 的資產`;
+      openModal('modal-adjust');
+    }
+
+    function submitStudentAdjust() {
+      const stId = document.getElementById('adjust-student-id').value;
+      const amount = parseInt(document.getElementById('adjust-amount').value);
+      if (isNaN(amount)) return alert('請輸入有效數字！');
+      appData.students[stId].balance += amount;
+      closeModal('modal-adjust');
       syncData();
-      document.getElementById('new-hw-title').value = '';
-    }
-
-    function editHomework(hwId) {
-      const hw = appData.homeworks.find(h => h.id === hwId);
-      if (!hw) return;
-      const newTitle = prompt('請修改作業名稱：', hw.title);
-      const newReward = prompt('請修改獎勵金額：', hw.reward);
-      if (newTitle && !isNaN(parseInt(newReward))) {
-        hw.title = newTitle.trim();
-        hw.reward = parseInt(newReward);
-        syncData();
-      }
-    }
-
-    function deleteHomework(hwId) {
-      if (confirm('確定要刪除這項作業規則嗎？')) {
-        appData.homeworks = appData.homeworks.filter(h => h.id !== hwId);
-        syncData();
-      }
-    }
-
-    // --- 表揚按鈕 CRUD ---
-    function addQuickButton() {
-      const name = document.getElementById('new-qbtn-name').value.trim();
-      const amount = parseInt(document.getElementById('new-qbtn-amount').value);
-      if (!name || isNaN(amount)) return alert('請完整填寫按鈕名稱與金額！');
-      appData.quickButtons.push({ id: 'q_' + Date.now(), name, amount });
-      syncData();
-      document.getElementById('new-qbtn-name').value = '';
-    }
-
-    function editQuickButton(qId) {
-      const q = appData.quickButtons.find(item => item.id === qId);
-      if (!q) return;
-      const newName = prompt('請修改按鈕名稱：', q.name);
-      const newAmount = prompt('請修改金額：', q.amount);
-      if (newName && !isNaN(parseInt(newAmount))) {
-        q.name = newName.trim();
-        q.amount = parseInt(newAmount);
-        syncData();
-      }
-    }
-
-    function deleteQuickButton(qId) {
-      if (confirm('確定要刪除這個表揚按鈕嗎？')) {
-        appData.quickButtons = appData.quickButtons.filter(q => q.id !== qId);
-        syncData();
-      }
-    }
-
-    // --- 交易與設定 ---
-    function saveClassSettings() {
-      appData.config.className = document.getElementById('cfg-class-name').value;
-      appData.config.semester = document.getElementById('cfg-semester').value;
-      appData.config.currencyName = document.getElementById('cfg-currency-name').value;
-      syncData();
-      alert('✅ 班級設定已成功儲存！');
     }
 
     function handleQuickSubmit() {
       const stId = document.getElementById('submit-student-select').value;
       const hwId = document.getElementById('submit-hw-select').value;
       const hw = appData.homeworks.find(h => h.id === hwId);
-      if (!stId || !hw) return alert('請先選擇作業與學生！');
-
+      if (!stId || !hw) return alert('請選擇作業與學生！');
       appData.students[stId].balance += hw.reward;
       alert(`🎉 ${appData.students[stId].name} 完成「${hw.title}」，獲得 +${hw.reward} ${appData.config.currencyName}！`);
       syncData();
@@ -523,82 +454,35 @@
       const stId = document.getElementById('admin-quick-student-select').value;
       if (!stId) return alert('請先選擇學生！');
       appData.students[stId].balance += amount;
-      alert(`🌟 ${appData.students[stId].name} 【${reason}】，獲得 +${amount} ${appData.config.currencyName}！`);
+      alert(`🌟 ${appData.students[stId].name} 【${reason}】 +${amount} ${appData.config.currencyName}！`);
       syncData();
     }
 
-    // Modal 加減分
-    function openAdjustModal(stId) {
-      document.getElementById('adjust-student-id').value = stId;
-      document.getElementById('adjust-modal-title').innerText = `調整 ${appData.students[stId].name} 的資產`;
-      document.getElementById('modal-adjust').classList.remove('hidden');
-    }
-
-    function closeAdjustModal() {
-      document.getElementById('modal-adjust').classList.add('hidden');
-    }
-
-    function submitStudentAdjust() {
-      const stId = document.getElementById('adjust-student-id').value;
-      const amount = parseInt(document.getElementById('adjust-amount').value);
-      const reason = document.getElementById('adjust-reason').value || '手動調整';
-      if (isNaN(amount)) return alert('請輸入有效金額！');
-
-      appData.students[stId].balance += amount;
-      alert(`✅ 已更新！${appData.students[stId].name} (${reason}) 金額變動：${amount}`);
-      closeAdjustModal();
+    function saveClassSettings() {
+      appData.config.className = document.getElementById('cfg-class-name').value;
+      appData.config.currencyName = document.getElementById('cfg-currency-name').value;
       syncData();
+      alert('✅ 設定已更新！');
     }
 
-    // 資料同步 (LocalStorage + Firebase)
     function syncData() {
       renderUI();
       localStorage.setItem('class_space_data', JSON.stringify(appData));
-      if (db) {
-        db.ref('appData').set(appData);
-      }
+      if (db) db.ref('appData').set(appData);
     }
 
-    // Firebase
-    function openFirebaseModal() { document.getElementById('modal-firebase').classList.remove('hidden'); }
-    function closeFirebaseModal() { document.getElementById('modal-firebase').classList.add('hidden'); }
-    
+    // Firebase 連線設定
+    function openFirebaseModal() { openModal('modal-firebase'); }
     function saveFirebaseConfig() {
-      const rawConfig = document.getElementById('firebase-config-input').value;
-      localStorage.setItem('firebase_config_raw', rawConfig);
+      const raw = document.getElementById('firebase-config-input').value;
+      localStorage.setItem('firebase_config_raw', raw);
       location.reload();
     }
 
-    function initFirebase() {
-      const rawConfig = localStorage.getItem('firebase_config_raw');
-      if (rawConfig) {
-        try {
-          const match = rawConfig.match(/const\s+firebaseConfig\s*=\s*(\{[\s\S]*?\});/);
-          if (match) {
-            const configObj = eval('(' + match[1] + ')');
-            firebase.initializeApp(configObj);
-            db = firebase.database();
-            document.getElementById('cloud-status').innerText = '🟢 已成功連線至 Firebase 雲端資料庫（資料跨電腦同步中）';
-            document.getElementById('cloud-bar').className = "mb-4 p-3 bg-emerald-600 text-white rounded-xl flex flex-col sm:flex-row justify-between items-center text-sm gap-2 shadow";
-            
-            db.ref('appData').on('value', snapshot => {
-              const data = snapshot.val();
-              if (data) {
-                appData = data;
-                renderUI();
-              }
-            });
-          }
-        } catch (e) { console.error("Firebase 初始化失敗", e); }
-      }
-    }
-
-    // 初始化
     window.onload = function() {
       const local = localStorage.getItem('class_space_data');
       if (local) appData = JSON.parse(local);
       renderUI();
-      initFirebase();
     };
   </script>
 </body>
