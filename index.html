@@ -67,7 +67,10 @@
   <main id="sec-view" class="hidden space-y-6">
     <div class="bg-white rounded-2xl p-6 shadow-sm">
       <div class="flex justify-between items-center mb-4">
-        <h2 class="text-xl font-bold text-gray-800">🏆 班級財富排行榜</h2>
+        <div>
+          <h2 class="text-xl font-bold text-gray-800">🏆 班級財富排行榜</h2>
+          <p class="text-xs text-gray-400">💡 點擊學生卡片可查詢個人資產明細與作業記錄</p>
+        </div>
         <span id="currency-tag" class="bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-xs font-bold">貨幣：💰元</span>
       </div>
       <div id="student-cards-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4"></div>
@@ -79,6 +82,7 @@
     <div class="bg-white rounded-2xl p-6 shadow-sm border-t-4 border-slate-800">
       <div class="flex border-b mb-6 overflow-x-auto gap-2">
         <button onclick="switchAdminTab('quick')" id="atab-quick" class="px-4 py-2 font-bold tab-active whitespace-nowrap">📝 課堂快速表揚</button>
+        <button onclick="switchAdminTab('check')" id="atab-check" class="px-4 py-2 font-bold text-gray-500 whitespace-nowrap">📑 作業繳交點收簿</button>
         <button onclick="switchAdminTab('students')" id="atab-students" class="px-4 py-2 font-bold text-gray-500 whitespace-nowrap">👥 學生管理 (含Excel匯入)</button>
         <button onclick="switchAdminTab('hw')" id="atab-hw" class="px-4 py-2 font-bold text-gray-500 whitespace-nowrap">📋 作業與規則管理</button>
         <button onclick="switchAdminTab('settings')" id="atab-settings" class="px-4 py-2 font-bold text-gray-500 whitespace-nowrap">⚙️ 班級設定</button>
@@ -94,6 +98,28 @@
           </div>
           <div id="quick-btn-container" class="flex flex-wrap gap-2"></div>
         </div>
+      </div>
+
+      <!-- 新增子分頁 1.5: 作業繳交點收簿 (教師手動點收) -->
+      <div id="asec-check" class="hidden space-y-4">
+        <div class="bg-slate-50 p-4 rounded-2xl border flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
+            <div>
+              <label class="block text-xs font-bold text-gray-500 mb-1">選擇作業項目：</label>
+              <select id="check-hw-select" onchange="renderCheckList()" class="p-2 border rounded-xl bg-white font-bold text-emerald-800 text-sm"></select>
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-gray-500 mb-1">日期：</label>
+              <input type="date" id="check-date-input" onchange="renderCheckList()" class="p-2 border rounded-xl bg-white font-bold text-sm">
+            </div>
+          </div>
+          <div class="flex gap-2">
+            <button onclick="setAllCheckStatus('done')" class="px-3 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-700">全班設為已完成</button>
+            <button onclick="setAllCheckStatus('none')" class="px-3 py-2 bg-gray-200 text-gray-700 rounded-xl text-xs font-bold hover:bg-gray-300">重設為未交</button>
+          </div>
+        </div>
+
+        <div id="check-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3"></div>
       </div>
 
       <!-- 子分頁 2: 學生管理 -->
@@ -179,6 +205,23 @@
     </div>
   </main>
 
+  <!-- 彈跳視窗 0: 學生個人歷史明細 -->
+  <div id="modal-student-history" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-2xl p-6 max-w-md w-full space-y-4 shadow-xl flex flex-col max-h-[85vh]">
+      <div class="flex justify-between items-center border-b pb-3">
+        <div>
+          <h3 id="history-student-name" class="text-lg font-bold text-gray-800">張小明 - 個人資產明細</h3>
+          <p id="history-student-balance" class="text-xs font-bold text-emerald-600">目前總資產：0 💰元</p>
+        </div>
+        <button onclick="closeModal('modal-student-history')" class="text-gray-400 hover:text-gray-600 font-bold text-xl">&times;</button>
+      </div>
+      <div id="history-list-container" class="overflow-y-auto flex-1 space-y-2 pr-1"></div>
+      <div class="pt-2 border-t text-right">
+        <button onclick="closeModal('modal-student-history')" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-xl font-bold text-xs">關閉</button>
+      </div>
+    </div>
+  </div>
+
   <!-- 彈跳視窗 1: 編輯學生姓名 -->
   <div id="modal-edit-student" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center p-4 z-50">
     <div class="bg-white rounded-2xl p-6 max-w-sm w-full space-y-4 shadow-xl">
@@ -239,7 +282,8 @@
   <div id="modal-firebase" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center p-4 z-50">
     <div class="bg-white rounded-2xl p-6 max-w-lg w-full space-y-4 shadow-xl">
       <h3 class="text-lg font-bold text-gray-800">⚙️ 設定 Firebase 跨電腦同步金鑰</h3>
-      <textarea id="firebase-config-input" rows="6" class="w-full p-3 border font-mono text-xs rounded-xl bg-gray-50" placeholder="const firebaseConfig = { ... };"></textarea>
+      <p class="text-xs text-gray-500">請貼上您 Firebase 專案的完整的 `firebaseConfig` 物件或 JSON：</p>
+      <textarea id="firebase-config-input" rows="6" class="w-full p-3 border font-mono text-xs rounded-xl bg-gray-50" placeholder='{"apiKey": "...", "databaseURL": "..."}'></textarea>
       <div class="flex justify-end gap-2">
         <button onclick="closeModal('modal-firebase')" class="px-4 py-2 bg-gray-200 rounded-xl font-bold text-xs">取消</button>
         <button onclick="saveFirebaseConfig()" class="px-4 py-2 bg-emerald-600 text-white rounded-xl font-bold text-xs">儲存並連線</button>
@@ -257,7 +301,8 @@
       quickButtons: [
         { id: 'q1', name: '🌟 今日表揚', amount: 50 },
         { id: 'q2', name: '🧹 掃地認真', amount: 20 }
-      ]
+      ],
+      hwRecords: {} // 記錄作業點收狀態： { 'YYYY-MM-DD': { 'hw_id': { 'student_id': 'done'|'fix'|'none' } } }
     };
 
     let db = null;
@@ -266,9 +311,35 @@
     function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
     function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
 
+    function getTodayString() {
+      const now = new Date();
+      const yyyy = now.getFullYear();
+      const mm = String(now.getMonth() + 1).padStart(2, '0');
+      const dd = String(now.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    }
+
+    function getTimeString() {
+      const now = new Date();
+      return `${now.getMonth() + 1}/${now.getDate()} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    }
+
+    function addStudentHistory(studentId, reason, amount) {
+      if (!appData.students[studentId]) return;
+      if (!appData.students[studentId].history) {
+        appData.students[studentId].history = [];
+      }
+      appData.students[studentId].history.unshift({
+        time: getTimeString(),
+        reason: reason,
+        amount: amount
+      });
+    }
+
     function clearLocalCache() {
       if (confirm("確定要清除本機暫存嗎？")) {
         localStorage.removeItem('class_space_data');
+        localStorage.removeItem('firebase_config_raw');
         location.reload();
       }
     }
@@ -288,12 +359,48 @@
     }
 
     function switchAdminTab(atab) {
-      ['quick', 'students', 'hw', 'settings'].forEach(t => {
+      ['quick', 'check', 'students', 'hw', 'settings'].forEach(t => {
         document.getElementById('asec-' + t).classList.add('hidden');
         document.getElementById('atab-' + t).className = "px-4 py-2 font-bold text-gray-500 whitespace-nowrap";
       });
       document.getElementById('asec-' + atab).classList.remove('hidden');
       document.getElementById('atab-' + atab).className = "px-4 py-2 font-bold tab-active whitespace-nowrap";
+      
+      if (atab === 'check') {
+        renderCheckList();
+      }
+    }
+
+    function openStudentHistoryModal(stId) {
+      const st = appData.students[stId];
+      if (!st) return;
+
+      document.getElementById('history-student-name').innerText = `${st.seat} 號 ${st.name} - 個人資產明細`;
+      document.getElementById('history-student-balance').innerText = `目前總資產：${st.balance} ${appData.config.currencyName}`;
+
+      const container = document.getElementById('history-list-container');
+      container.innerHTML = '';
+
+      if (!st.history || st.history.length === 0) {
+        container.innerHTML = `<p class="text-center text-gray-400 py-8 text-sm">尚無加減分或作業紀錄</p>`;
+      } else {
+        st.history.forEach(item => {
+          const isPositive = item.amount >= 0;
+          const colorClass = isPositive ? 'text-emerald-600 bg-emerald-50 border-emerald-200' : 'text-red-600 bg-red-50 border-red-200';
+          const sign = isPositive ? '+' : '';
+
+          container.innerHTML += `
+            <div class="p-3 rounded-xl border flex justify-between items-center ${colorClass}">
+              <div>
+                <div class="font-bold text-gray-800 text-sm">${item.reason}</div>
+                <div class="text-xs text-gray-400 mt-0.5">${item.time}</div>
+              </div>
+              <div class="font-extrabold text-base">${sign}${item.amount} ${appData.config.currencyName}</div>
+            </div>`;
+        });
+      }
+
+      openModal('modal-student-history');
     }
 
     function renderUI() {
@@ -307,10 +414,11 @@
       grid.innerHTML = '';
       Object.values(appData.students).sort((a,b)=>a.seat-b.seat).forEach(s => {
         grid.innerHTML += `
-          <div class="bg-gray-50 p-4 rounded-xl text-center border shadow-sm">
+          <div onclick="openStudentHistoryModal('${s.id}')" class="bg-gray-50 p-4 rounded-xl text-center border shadow-sm cursor-pointer hover:bg-emerald-50 hover:border-emerald-300 transition">
             <div class="text-xs text-gray-400 font-bold">${s.seat} 號</div>
             <div class="font-bold text-gray-700">${s.name}</div>
             <div class="text-emerald-600 font-extrabold mt-1">${s.balance} <span class="text-xs">${appData.config.currencyName}</span></div>
+            <div class="text-[10px] text-gray-400 mt-1">🔍 查歷史明細</div>
           </div>`;
       });
 
@@ -326,12 +434,18 @@
 
       // 3. 作業選單與作業規則清單
       const hwSelect = document.getElementById('submit-hw-select');
+      const checkHwSelect = document.getElementById('check-hw-select');
       const hwRuleList = document.getElementById('hw-rule-list');
+      
       hwSelect.innerHTML = '';
+      checkHwSelect.innerHTML = '';
       hwRuleList.innerHTML = '';
       
       appData.homeworks.forEach(h => {
-        hwSelect.innerHTML += `<option value="${h.id}">${h.title} ( +${h.reward} ${appData.config.currencyName} )</option>`;
+        const opt = `<option value="${h.id}">${h.title} ( +${h.reward} ${appData.config.currencyName} )</option>`;
+        hwSelect.innerHTML += opt;
+        checkHwSelect.innerHTML += opt;
+
         hwRuleList.innerHTML += `
           <li class="p-3 bg-white border rounded-xl flex justify-between items-center shadow-sm">
             <span class="font-bold text-gray-700">${h.title} <span class="text-emerald-600 text-xs">(+${h.reward} ${appData.config.currencyName})</span></span>
@@ -386,6 +500,103 @@
             ${q.name} (+${q.amount})
           </button>`;
       });
+    }
+
+    // --- 作業點收簿邏輯 (教師手動點收) ---
+    function renderCheckList() {
+      const hwId = document.getElementById('check-hw-select').value;
+      const date = document.getElementById('check-date-input').value || getTodayString();
+      const grid = document.getElementById('check-grid');
+      grid.innerHTML = '';
+
+      if (!hwId) {
+        grid.innerHTML = '<p class="text-gray-400 text-sm">請先新增作業項目！</p>';
+        return;
+      }
+
+      if (!appData.hwRecords) appData.hwRecords = {};
+      if (!appData.hwRecords[date]) appData.hwRecords[date] = {};
+      if (!appData.hwRecords[date][hwId]) appData.hwRecords[date][hwId] = {};
+
+      const currentRecord = appData.hwRecords[date][hwId];
+
+      Object.values(appData.students).sort((a,b)=>a.seat-b.seat).forEach(s => {
+        const status = currentRecord[s.id] || 'none'; // 'done' | 'fix' | 'none'
+        
+        let bgClass = "bg-white border-gray-200";
+        if (status === 'done') bgClass = "bg-emerald-50 border-emerald-300";
+        if (status === 'fix') bgClass = "bg-amber-50 border-amber-300";
+
+        grid.innerHTML += `
+          <div class="p-3 border rounded-xl flex flex-col justify-between space-y-2 shadow-sm ${bgClass}">
+            <div class="flex justify-between items-center">
+              <div>
+                <span class="text-xs text-gray-400 font-bold">${s.seat}號</span>
+                <span class="font-bold text-gray-800 ml-1">${s.name}</span>
+              </div>
+            </div>
+            <div class="flex gap-1">
+              <button onclick="toggleStudentCheckStatus('${s.id}', 'done')" class="flex-1 py-1.5 rounded-lg text-xs font-bold transition ${status === 'done' ? 'bg-emerald-600 text-white shadow' : 'bg-gray-100 text-gray-600 hover:bg-emerald-100'}">🟢 已完成</button>
+              <button onclick="toggleStudentCheckStatus('${s.id}', 'fix')" class="flex-1 py-1.5 rounded-lg text-xs font-bold transition ${status === 'fix' ? 'bg-amber-500 text-white shadow' : 'bg-gray-100 text-gray-600 hover:bg-amber-100'}">🟡 未訂正</button>
+              <button onclick="toggleStudentCheckStatus('${s.id}', 'none')" class="flex-1 py-1.5 rounded-lg text-xs font-bold transition ${status === 'none' ? 'bg-red-500 text-white shadow' : 'bg-gray-100 text-gray-600 hover:bg-red-100'}">🔴 未交</button>
+            </div>
+          </div>`;
+      });
+    }
+
+    function toggleStudentCheckStatus(stId, targetStatus) {
+      const hwId = document.getElementById('check-hw-select').value;
+      const date = document.getElementById('check-date-input').value || getTodayString();
+      const hw = appData.homeworks.find(h => h.id === hwId);
+      if (!hw) return;
+
+      if (!appData.hwRecords) appData.hwRecords = {};
+      if (!appData.hwRecords[date]) appData.hwRecords[date] = {};
+      if (!appData.hwRecords[date][hwId]) appData.hwRecords[date][hwId] = {};
+
+      const oldStatus = appData.hwRecords[date][hwId][stId] || 'none';
+      if (oldStatus === targetStatus) return;
+
+      // 獎勵金增減發放邏輯
+      if (targetStatus === 'done' && oldStatus !== 'done') {
+        appData.students[stId].balance += hw.reward;
+        addStudentHistory(stId, `點收作業：${hw.title}`, hw.reward);
+      } else if (oldStatus === 'done' && targetStatus !== 'done') {
+        appData.students[stId].balance -= hw.reward;
+        addStudentHistory(stId, `取消作業點收：${hw.title}`, -hw.reward);
+      }
+
+      appData.hwRecords[date][hwId][stId] = targetStatus;
+      syncData();
+      renderCheckList();
+    }
+
+    function setAllCheckStatus(targetStatus) {
+      const hwId = document.getElementById('check-hw-select').value;
+      const date = document.getElementById('check-date-input').value || getTodayString();
+      const hw = appData.homeworks.find(h => h.id === hwId);
+      if (!hw) return;
+
+      if (!appData.hwRecords) appData.hwRecords = {};
+      if (!appData.hwRecords[date]) appData.hwRecords[date] = {};
+      if (!appData.hwRecords[date][hwId]) appData.hwRecords[date][hwId] = {};
+
+      Object.keys(appData.students).forEach(stId => {
+        const oldStatus = appData.hwRecords[date][hwId][stId] || 'none';
+        if (oldStatus !== targetStatus) {
+          if (targetStatus === 'done' && oldStatus !== 'done') {
+            appData.students[stId].balance += hw.reward;
+            addStudentHistory(stId, `點收作業：${hw.title}`, hw.reward);
+          } else if (oldStatus === 'done' && targetStatus !== 'done') {
+            appData.students[stId].balance -= hw.reward;
+            addStudentHistory(stId, `取消作業點收：${hw.title}`, -hw.reward);
+          }
+          appData.hwRecords[date][hwId][stId] = targetStatus;
+        }
+      });
+
+      syncData();
+      renderCheckList();
     }
 
     // --- 新增 / 刪除 作業項目 ---
@@ -503,7 +714,7 @@
       const name = document.getElementById('new-st-name').value.trim();
       if (!seat || !name) return alert('請填寫座號與姓名！');
       const id = 's' + seat;
-      appData.students[id] = { id, seat, name, balance: appData.students[id]?.balance || 0 };
+      appData.students[id] = { id, seat, name, balance: appData.students[id]?.balance || 0, history: appData.students[id]?.history || [] };
       document.getElementById('new-st-seat').value = '';
       document.getElementById('new-st-name').value = '';
       syncData();
@@ -524,7 +735,7 @@
           const name = match[2].trim();
           if (!isNaN(seat) && name && name !== '姓名' && name !== '座號') {
             const id = 's' + seat;
-            appData.students[id] = { id, seat, name, balance: appData.students[id]?.balance || 0 };
+            appData.students[id] = { id, seat, name, balance: appData.students[id]?.balance || 0, history: appData.students[id]?.history || [] };
             count++;
           }
         }
@@ -575,8 +786,15 @@
     function submitStudentAdjust() {
       const stId = document.getElementById('adjust-student-id').value;
       const amount = parseInt(document.getElementById('adjust-amount').value);
+      const reason = document.getElementById('adjust-reason').value.trim() || '手動調整';
+
       if (isNaN(amount)) return alert('請輸入有效數字！');
       appData.students[stId].balance += amount;
+      addStudentHistory(stId, reason, amount);
+
+      document.getElementById('adjust-amount').value = '';
+      document.getElementById('adjust-reason').value = '';
+
       closeModal('modal-adjust');
       syncData();
     }
@@ -586,7 +804,17 @@
       const hwId = document.getElementById('submit-hw-select').value;
       const hw = appData.homeworks.find(h => h.id === hwId);
       if (!stId || !hw) return alert('請選擇作業與學生！');
+
       appData.students[stId].balance += hw.reward;
+      addStudentHistory(stId, `條碼感應繳交：${hw.title}`, hw.reward);
+
+      // 同步更新當天點收狀態為已完成
+      const today = getTodayString();
+      if (!appData.hwRecords) appData.hwRecords = {};
+      if (!appData.hwRecords[today]) appData.hwRecords[today] = {};
+      if (!appData.hwRecords[today][hwId]) appData.hwRecords[today][hwId] = {};
+      appData.hwRecords[today][hwId][stId] = 'done';
+
       alert(`🎉 ${appData.students[stId].name} 完成「${hw.title}」，獲得 +${hw.reward} ${appData.config.currencyName}！`);
       syncData();
     }
@@ -594,7 +822,10 @@
     function triggerQuickReward(reason, amount) {
       const stId = document.getElementById('admin-quick-student-select').value;
       if (!stId) return alert('請先選擇學生！');
+
       appData.students[stId].balance += amount;
+      addStudentHistory(stId, `課堂表揚：${reason}`, amount);
+
       alert(`🌟 ${appData.students[stId].name} 【${reason}】 +${amount} ${appData.config.currencyName}！`);
       syncData();
     }
@@ -609,20 +840,87 @@
     function syncData() {
       renderUI();
       localStorage.setItem('class_space_data', JSON.stringify(appData));
-      if (db) db.ref('appData').set(appData);
+      if (db) {
+        db.ref('appData').set(appData);
+      }
     }
 
-    // Firebase 連線設定
-    function openFirebaseModal() { openModal('modal-firebase'); }
+    // --- Firebase 初始化與連線邏輯 ---
+    function initFirebase(rawConfig) {
+      try {
+        let configObj = null;
+        if (typeof rawConfig === 'string') {
+          const jsonStr = rawConfig.replace(/const\s+firebaseConfig\s*=\s*/, '').replace(/;/g, '').trim();
+          configObj = eval('(' + jsonStr + ')');
+        } else {
+          configObj = rawConfig;
+        }
+
+        if (!configObj || !configObj.apiKey) {
+          throw new Error("無效的金鑰格式");
+        }
+
+        if (!firebase.apps.length) {
+          firebase.initializeApp(configObj);
+        }
+        db = firebase.database();
+
+        // 監聽雲端資料同步
+        db.ref('appData').on('value', (snapshot) => {
+          const val = snapshot.val();
+          if (val) {
+            appData = val;
+            renderUI();
+            localStorage.setItem('class_space_data', JSON.stringify(appData));
+          }
+        });
+
+        // 更新頂部連線狀態列
+        const bar = document.getElementById('cloud-bar');
+        const status = document.getElementById('cloud-status');
+        bar.className = "mb-4 p-3 bg-emerald-600 text-white rounded-xl flex flex-col sm:flex-row justify-between items-center text-sm gap-2 shadow";
+        status.innerText = "☁️ Firebase 雲端即時同步中";
+
+        return true;
+      } catch (err) {
+        console.error("Firebase 初始化失敗：", err);
+        return false;
+      }
+    }
+
+    function openFirebaseModal() { 
+      const stored = localStorage.getItem('firebase_config_raw') || '';
+      document.getElementById('firebase-config-input').value = stored;
+      openModal('modal-firebase'); 
+    }
+
     function saveFirebaseConfig() {
-      const raw = document.getElementById('firebase-config-input').value;
+      const raw = document.getElementById('firebase-config-input').value.trim();
+      if (!raw) return alert('請貼上有效的 Firebase 設定！');
+
       localStorage.setItem('firebase_config_raw', raw);
-      location.reload();
+      if (initFirebase(raw)) {
+        alert('🎉 Firebase 雲端連線成功！');
+        closeModal('modal-firebase');
+      } else {
+        alert('❌ Firebase 金鑰格式錯誤或連線失敗，請檢查輸入內容！');
+      }
     }
 
     window.onload = function() {
+      // 1. 預設日期輸入框為今天
+      document.getElementById('check-date-input').value = getTodayString();
+
+      // 2. 優先載入本地數據
       const local = localStorage.getItem('class_space_data');
       if (local) appData = JSON.parse(local);
+
+      // 3. 自動嘗試連線 Firebase
+      const rawConfig = localStorage.getItem('firebase_config_raw');
+      if (rawConfig) {
+        initFirebase(rawConfig);
+      }
+
       renderUI();
     };
   </script>
