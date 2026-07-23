@@ -83,16 +83,16 @@
       <div class="flex border-b mb-6 overflow-x-auto gap-2">
         <button onclick="switchAdminTab('quick')" id="atab-quick" class="px-4 py-2 font-bold text-gray-500 whitespace-nowrap">📝 課堂快速表揚</button>
         <button onclick="switchAdminTab('check')" id="atab-check" class="px-4 py-2 font-bold text-gray-500 whitespace-nowrap">📑 作業繳交點收簿</button>
-        <button onclick="switchAdminTab('students')" id="atab-students" class="px-4 py-2 font-bold tab-active whitespace-nowrap">👥 學生管理 (含Excel匯入)</button>
-        <button onclick="switchAdminTab('hw')" id="atab-hw" class="px-4 py-2 font-bold text-gray-500 whitespace-nowrap">📋 作業與規則管理</button>
+        <button onclick="switchAdminTab('students')" id="atab-students" class="px-4 py-2 font-bold text-gray-500 whitespace-nowrap">👥 學生管理 (含Excel匯入)</button>
+        <button onclick="switchAdminTab('hw')" id="atab-hw" class="px-4 py-2 font-bold tab-active whitespace-nowrap">📋 作業與規則管理</button>
         <button onclick="switchAdminTab('settings')" id="atab-settings" class="px-4 py-2 font-bold text-gray-500 whitespace-nowrap">⚙️ 班級設定</button>
       </div>
 
       <!-- 子分頁 1: 課堂表揚 -->
       <div id="asec-quick" class="hidden space-y-6">
         <div class="bg-emerald-50 p-4 rounded-xl border border-emerald-200">
-          <h3 class="font-bold text-emerald-800 mb-2">🌟 課堂一鍵給獎勵</h3>
-          <p class="text-xs text-gray-500 mb-3">先選擇學生，再點擊下方快捷按鈕即可發放：</p>
+          <h3 class="font-bold text-emerald-800 mb-2">🌟 課堂加減分快捷操作</h3>
+          <p class="text-xs text-gray-500 mb-3">先選擇學生，再點擊下方快捷按鈕即可發放獎勵或扣分：</p>
           <div class="mb-4">
             <select id="admin-quick-student-select" class="p-2 border rounded-lg bg-white w-full sm:w-64 font-bold"></select>
           </div>
@@ -123,7 +123,7 @@
       </div>
 
       <!-- 子分頁 2: 學生管理 -->
-      <div id="asec-students" class="space-y-6">
+      <div id="asec-students" class="hidden space-y-6">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <!-- 單一新增 -->
           <div class="bg-gray-50 p-4 rounded-xl border space-y-3">
@@ -157,7 +157,7 @@
       </div>
 
       <!-- 子分頁 3: 作業與規則管理 -->
-      <div id="asec-hw" class="hidden space-y-6">
+      <div id="asec-hw" class="space-y-6">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div class="bg-gray-50 p-4 rounded-2xl border space-y-4">
             <h3 class="font-bold text-emerald-800 flex items-center gap-1">📚 作業繳交項目管理</h3>
@@ -172,14 +172,15 @@
           </div>
 
           <div class="bg-amber-50 p-4 rounded-2xl border border-amber-200 space-y-4">
-            <h3 class="font-bold text-amber-800 flex items-center gap-1">🎁 課堂快速表揚獎勵項目</h3>
+            <h3 class="font-bold text-amber-800 flex items-center gap-1">🎁 課堂快速表揚與扣分項目</h3>
+            <p class="text-xs text-gray-500">提示：金額輸入正數為加分，輸入負數（例如 <code class="bg-amber-100 px-1 rounded">-20</code>）即為扣分項目！</p>
             <div class="space-y-2">
-              <input type="text" id="new-qb-name" placeholder="獎勵項目名稱 (例如：掃地認真)" class="w-full p-2 border rounded-lg text-sm bg-white">
-              <input type="text" id="new-qb-amount" placeholder="加分金額 (例如：20)" class="w-full p-2 border rounded-lg text-sm bg-white" value="20">
-              <button onclick="addQuickButton()" class="w-full py-2 bg-amber-600 text-white font-bold rounded-lg text-sm hover:bg-amber-700">+ 新增獎勵項目</button>
+              <input type="text" id="new-qb-name" placeholder="項目名稱 (例如：遲到、掃地認真)" class="w-full p-2 border rounded-lg text-sm bg-white">
+              <input type="text" id="new-qb-amount" placeholder="金額 (加分填 20，扣分填 -20)" class="w-full p-2 border rounded-lg text-sm bg-white" value="20">
+              <button onclick="addQuickButton()" class="w-full py-2 bg-amber-600 text-white font-bold rounded-lg text-sm hover:bg-amber-700">+ 新增獎勵/扣分項目</button>
             </div>
             <hr class="border-amber-200">
-            <h4 class="font-bold text-amber-900 text-xs">現有快捷獎勵按鈕：</h4>
+            <h4 class="font-bold text-amber-900 text-xs">現有快捷按鈕列表：</h4>
             <ul id="qb-rule-list" class="space-y-2 text-sm max-h-60 overflow-y-auto"></ul>
           </div>
         </div>
@@ -257,14 +258,14 @@
   <!-- 彈跳視窗 3: 編輯快捷獎勵項目 -->
   <div id="modal-edit-qb" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center p-4 z-50">
     <div class="bg-white rounded-2xl p-6 max-w-sm w-full space-y-4 shadow-xl">
-      <h3 class="text-lg font-bold text-gray-800">✏️ 編輯獎勵項目</h3>
+      <h3 class="text-lg font-bold text-gray-800">✏️ 編輯獎勵/扣分項目</h3>
       <input type="hidden" id="edit-qb-id">
       <div>
         <label class="block text-xs text-gray-500 mb-1">項目名稱：</label>
         <input type="text" id="edit-qb-name-input" class="w-full p-2 border rounded-lg font-bold text-sm">
       </div>
       <div>
-        <label class="block text-xs text-gray-500 mb-1">獎勵金額：</label>
+        <label class="block text-xs text-gray-500 mb-1">金額 (加分填正數，扣分填負數)：</label>
         <input type="number" id="edit-qb-amount-input" class="w-full p-2 border rounded-lg font-bold text-sm">
       </div>
       <div class="flex justify-end gap-2">
@@ -296,13 +297,14 @@
       ],
       quickButtons: [
         { id: 'q1', name: '🌟 今日表揚', amount: 50 },
-        { id: 'q2', name: '掃地認真', amount: 20 }
+        { id: 'q2', name: '掃地認真', amount: 20 },
+        { id: 'q3', name: '遲到', amount: -20 }
       ],
       hwRecords: {}
     };
 
     let db = null;
-    let isAdminUnlocked = true; // 預設解鎖後台避免重複彈窗
+    let isAdminUnlocked = true;
 
     function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
     function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
@@ -447,14 +449,18 @@
           </li>`;
       });
 
-      // 4. 快捷獎勵項目清單
+      // 4. 快捷獎勵/扣分項目清單
       const qbRuleList = document.getElementById('qb-rule-list');
       qbRuleList.innerHTML = '';
       if (!appData.quickButtons) appData.quickButtons = [];
       appData.quickButtons.forEach(q => {
+        const isPos = q.amount >= 0;
+        const badgeColor = isPos ? 'text-amber-600' : 'text-red-600 font-extrabold';
+        const displaySign = isPos ? '+' : '';
+
         qbRuleList.innerHTML += `
           <li class="p-3 bg-white border rounded-xl flex justify-between items-center shadow-sm">
-            <span class="font-bold text-gray-700">${q.name} <span class="text-amber-600 text-xs">(+${q.amount} ${appData.config.currencyName})</span></span>
+            <span class="font-bold text-gray-700">${q.name} <span class="${badgeColor} text-xs">(${displaySign}${q.amount} ${appData.config.currencyName})</span></span>
             <div class="flex gap-1">
               <button onclick="openEditQuickButtonModal('${q.id}')" class="text-xs bg-gray-100 hover:bg-gray-200 px-2 py-1 rounded font-bold">✏️ 編輯</button>
               <button onclick="deleteQuickButton('${q.id}')" class="text-xs bg-red-100 text-red-600 hover:bg-red-200 px-2 py-1 rounded font-bold">🗑️ 刪除</button>
@@ -485,18 +491,22 @@
           </div>`;
       });
 
-      // 6. 快速表揚按鈕
+      // 6. 快速表揚/扣分按鈕
       const qContainer = document.getElementById('quick-btn-container');
       qContainer.innerHTML = '';
       appData.quickButtons.forEach(q => {
+        const isPos = q.amount >= 0;
+        const btnColor = isPos ? 'bg-white hover:bg-amber-100 text-amber-900 border-amber-300' : 'bg-red-50 hover:bg-red-100 text-red-700 border-red-300';
+        const displaySign = isPos ? '+' : '';
+
         qContainer.innerHTML += `
-          <button onclick="triggerQuickReward('${q.name}', ${q.amount})" class="px-3 py-2 bg-white hover:bg-amber-100 text-amber-900 rounded-xl font-bold text-sm border border-amber-300 shadow-sm transition">
-            ${q.name} (+${q.amount})
+          <button onclick="triggerQuickReward('${q.name}', ${q.amount})" class="px-3 py-2 rounded-xl font-bold text-sm border shadow-sm transition ${btnColor}">
+            ${q.name} (${displaySign}${q.amount})
           </button>`;
       });
     }
 
-    // --- 單一新增學生（超強健容錯） ---
+    // --- 單一新增學生 ---
     function addNewStudent() {
       ensureStudentsObject();
       const seatVal = document.getElementById('new-st-seat').value.trim();
@@ -523,21 +533,19 @@
       alert(`🎉 成功新增學生：${seat} 號 ${nameVal}`);
     }
 
-    // --- 批次解析學生（全面破解複製貼上格式問題） ---
+    // --- 批次解析學生 ---
     function processBatchInput() {
       ensureStudentsObject();
       const rawText = document.getElementById('batch-excel-input').value;
       if (!rawText.trim()) return alert('⚠️ 輸入框是空的，請先貼上內容！');
 
       let count = 0;
-      // 依換行切割
       const lines = rawText.split(/\r?\n/);
 
       lines.forEach(line => {
         const cleanedLine = line.trim();
         if (!cleanedLine) return;
 
-        // 支援包含 Tab、多重半形/全形空格、逗號切割
         const parts = cleanedLine.split(/[\t,，\s]+/);
         if (parts.length >= 2) {
           const seat = parseInt(parts[0]);
@@ -689,7 +697,7 @@
       renderCheckList();
     }
 
-    // --- 作業與快捷按鈕邏輯 ---
+    // --- 作業與快捷獎勵/扣分項目邏輯 ---
     function addHomework() {
       const title = document.getElementById('new-hw-title').value.trim();
       let rawReward = document.getElementById('new-hw-reward').value.trim().replace(/\+/g, '');
@@ -717,10 +725,10 @@
 
     function addQuickButton() {
       const name = document.getElementById('new-qb-name').value.trim();
-      let rawAmount = document.getElementById('new-qb-amount').value.trim().replace(/\+/g, '');
-      const amount = parseInt(rawAmount);
+      const rawAmountStr = document.getElementById('new-qb-amount').value.trim();
+      const amount = parseInt(rawAmountStr);
 
-      if (!name || isNaN(amount)) return alert('⚠️ 請輸入有效的項目名稱與金額！');
+      if (!name || isNaN(amount)) return alert('⚠️ 請輸入有效的項目名稱與金額（加分填正數，扣分填負數）！');
 
       const id = 'qb_' + Date.now();
       if (!appData.quickButtons) appData.quickButtons = [];
@@ -730,7 +738,7 @@
       document.getElementById('new-qb-amount').value = '20';
 
       syncData();
-      alert(`🎉 成功新增獎勵項目：「${name}」！`);
+      alert(`🎉 成功新增項目：「${name} (${amount >= 0 ? '+' : ''}${amount})」！`);
     }
 
     function openEditQuickButtonModal(qbId) {
@@ -745,8 +753,8 @@
     function saveQuickButtonEdit() {
       const id = document.getElementById('edit-qb-id').value;
       const name = document.getElementById('edit-qb-name-input').value.trim();
-      let rawAmount = document.getElementById('edit-qb-amount-input').value.toString().replace(/\+/g, '').trim();
-      const amount = parseInt(rawAmount);
+      const rawAmountStr = document.getElementById('edit-qb-amount-input').value.trim();
+      const amount = parseInt(rawAmountStr);
 
       if (!name || isNaN(amount)) return alert('請輸入有效的項目名稱與金額！');
 
@@ -760,7 +768,7 @@
     }
 
     function deleteQuickButton(qbId) {
-      if (confirm('確定要刪除這個獎勵項目嗎？')) {
+      if (confirm('確定要刪除這個項目嗎？')) {
         appData.quickButtons = appData.quickButtons.filter(q => q.id !== qbId);
         syncData();
       }
@@ -843,9 +851,10 @@
       if (!stId) return alert('請先選擇學生！');
 
       appData.students[stId].balance += amount;
-      addStudentHistory(stId, `課堂表揚：${reason}`, amount);
+      addStudentHistory(stId, `${amount >= 0 ? '課堂表揚' : '課堂扣分'}：${reason}`, amount);
 
-      alert(`🌟 ${appData.students[stId].name} 【${reason}】 +${amount} ${appData.config.currencyName}！`);
+      const actionText = amount >= 0 ? `+${amount}` : `${amount}`;
+      alert(`🔔 ${appData.students[stId].name} 【${reason}】 ${actionText} ${appData.config.currencyName}！`);
       syncData();
     }
 
