@@ -38,7 +38,7 @@
     </div>
   </header>
 
-  <!-- 區塊 1: 條碼繳交 (前台簡潔版) -->
+  <!-- 區塊 1: 條碼繳交 (前台) -->
   <main id="sec-submit" class="space-y-6">
     <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 max-w-xl mx-auto text-center space-y-4">
       <h2 class="text-xl font-bold text-gray-700">📚 學生作業快速繳交</h2>
@@ -69,18 +69,18 @@
     </div>
   </main>
 
-  <!-- 區塊 3: 教師後台 (所有最新功能均收納於此) -->
+  <!-- 區塊 3: 教師後台 -->
   <main id="sec-admin" class="hidden space-y-6">
     <div class="bg-white rounded-2xl p-6 shadow-sm border-t-4 border-slate-800">
       <!-- 後台導覽選單 -->
       <div class="flex border-b mb-6 overflow-x-auto gap-2">
         <button onclick="switchAdminTab('quick')" id="atab-quick" class="px-4 py-2 font-bold tab-active whitespace-nowrap">📝 課堂快速表揚</button>
-        <button onclick="switchAdminTab('students')" id="atab-students" class="px-4 py-2 font-bold text-gray-500 whitespace-nowrap">👥 學生管理與手動加減分</button>
+        <button onclick="switchAdminTab('students')" id="atab-students" class="px-4 py-2 font-bold text-gray-500 whitespace-nowrap">👥 學生管理 (新增/編輯/刪除/加減分)</button>
         <button onclick="switchAdminTab('hw')" id="atab-hw" class="px-4 py-2 font-bold text-gray-500 whitespace-nowrap">📋 作業與規則版本</button>
         <button onclick="switchAdminTab('settings')" id="atab-settings" class="px-4 py-2 font-bold text-gray-500 whitespace-nowrap">⚙️ 班級設定</button>
       </div>
 
-      <!-- 子分頁 1: 課堂快速表揚 (後台操作) -->
+      <!-- 子分頁 1: 課堂快速表揚 -->
       <div id="asec-quick" class="space-y-6">
         <div class="bg-emerald-50 p-4 rounded-xl border border-emerald-200">
           <h3 class="font-bold text-emerald-800 mb-2">🌟 課堂一鍵給獎勵</h3>
@@ -89,9 +89,7 @@
             <label class="block text-xs font-bold text-gray-600 mb-1">選擇受獎學生：</label>
             <select id="admin-quick-student-select" class="p-2 border rounded-lg bg-white w-full sm:w-64 font-bold"></select>
           </div>
-          <div id="quick-btn-container" class="flex flex-wrap gap-2">
-            <!-- 快速按鈕動態渲染 -->
-          </div>
+          <div id="quick-btn-container" class="flex flex-wrap gap-2"></div>
         </div>
 
         <div class="max-w-lg border-t pt-4">
@@ -105,11 +103,21 @@
         </div>
       </div>
 
-      <!-- 子分頁 2: 學生管理與手動加減分 -->
-      <div id="asec-students" class="hidden space-y-4">
-        <h3 class="font-bold text-gray-700">學生名單（點擊任一學生可直接進行手動 `+20` 或 `-20` 並紀錄事由）</h3>
-        <div id="admin-student-list" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-          <!-- 學生清單 -->
+      <!-- 子分頁 2: 學生管理 (包含新增、編輯、刪除、手動加減分) -->
+      <div id="asec-students" class="hidden space-y-6">
+        <!-- 手動新增單一學生 -->
+        <div class="bg-gray-50 p-4 rounded-xl border max-w-lg space-y-3">
+          <h4 class="font-bold text-sm text-gray-700">➕ 新增單一學生</h4>
+          <div class="flex gap-2">
+            <input type="number" id="new-st-seat" placeholder="座號" class="w-20 p-2 border rounded-lg text-sm">
+            <input type="text" id="new-st-name" placeholder="學生姓名" class="flex-1 p-2 border rounded-lg text-sm">
+            <button onclick="addNewStudent()" class="px-4 py-2 bg-emerald-600 text-white font-bold rounded-lg text-sm hover:bg-emerald-700">新增學生</button>
+          </div>
+        </div>
+
+        <div>
+          <h3 class="font-bold text-gray-700 mb-3">學生名單列表（點擊卡片可加減分，或進行編輯/刪除）</h3>
+          <div id="admin-student-list" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3"></div>
         </div>
       </div>
 
@@ -138,7 +146,7 @@
           <input type="text" id="cfg-semester" class="w-full p-2 border rounded-lg text-sm" value="114學年度上學期">
         </div>
         <div>
-          <label class="block text-sm text-gray-500">班級座號數量 (人數)：</label>
+          <label class="block text-sm text-gray-500">班級預設座號人數：</label>
           <input type="number" id="cfg-student-count" class="w-full p-2 border rounded-lg text-sm" value="25" min="1" max="60">
         </div>
         <div>
@@ -279,19 +287,25 @@
         `;
       });
 
-      // 渲染後台學生清單 (可手動加減分)
+      // 渲染後台學生清單 (包含新增、編輯姓名、刪除、手動加減分)
       const adminStList = document.getElementById('admin-student-list');
       adminStList.innerHTML = '';
       Object.values(appData.students).sort((a,b)=>a.seat-b.seat).forEach(s => {
         adminStList.innerHTML += `
-          <div onclick="openAdjustModal('${s.id}')" class="p-3 bg-white border rounded-xl flex justify-between items-center cursor-pointer hover:border-emerald-500 transition">
-            <div>
-              <span class="text-xs text-gray-400 font-bold">${s.seat}號</span>
-              <div class="font-bold text-gray-700">${s.name}</div>
+          <div class="p-3 bg-white border rounded-xl space-y-2 shadow-sm hover:border-emerald-400 transition">
+            <div class="flex justify-between items-center">
+              <div>
+                <span class="text-xs text-gray-400 font-bold">${s.seat}號</span>
+                <span class="font-bold text-gray-800 ml-1">${s.name}</span>
+              </div>
+              <div class="flex gap-1">
+                <button onclick="editStudentName('${s.id}')" title="編輯姓名" class="text-xs bg-gray-100 p-1 rounded hover:bg-gray-200">✏️</button>
+                <button onclick="deleteStudent('${s.id}')" title="刪除學生" class="text-xs bg-red-50 text-red-600 p-1 rounded hover:bg-red-100">🗑️</button>
+              </div>
             </div>
-            <div class="text-right">
-              <div class="text-emerald-600 font-bold">${s.balance}</div>
-              <div class="text-xs text-emerald-500">點擊加減分 ➔</div>
+            <div onclick="openAdjustModal('${s.id}')" class="p-2 bg-emerald-50 rounded-lg flex justify-between items-center cursor-pointer hover:bg-emerald-100">
+              <span class="text-xs font-bold text-emerald-800">資產：${s.balance} ${appData.config.currencyName}</span>
+              <span class="text-xs text-emerald-600 font-bold">加減分 ➔</span>
             </div>
           </div>
         `;
@@ -312,6 +326,36 @@
       });
     }
 
+    // 邏輯: 手動新增學生
+    function addNewStudent() {
+      const seat = parseInt(document.getElementById('new-st-seat').value);
+      const name = document.getElementById('new-st-name').value;
+      if (!seat || !name) return alert('請輸入完整的座號與姓名');
+      const id = 's' + seat;
+      appData.students[id] = { id, seat, name, balance: 0 };
+      syncData();
+      document.getElementById('new-st-seat').value = '';
+      document.getElementById('new-st-name').value = '';
+    }
+
+    // 邏輯: 編輯學生姓名
+    function editStudentName(stId) {
+      const currentName = appData.students[stId].name;
+      const newName = prompt('請輸入新的學生姓名：', currentName);
+      if (newName && newName.trim() !== '') {
+        appData.students[stId].name = newName.trim();
+        syncData();
+      }
+    }
+
+    // 邏輯: 刪除學生
+    function deleteStudent(stId) {
+      if (confirm(`確定要刪除 ${appData.students[stId].seat}號 ${appData.students[stId].name} 嗎？`)) {
+        delete appData.students[stId];
+        syncData();
+      }
+    }
+
     // 邏輯: 儲存班級設定
     function saveClassSettings() {
       appData.config.className = document.getElementById('cfg-class-name').value;
@@ -323,7 +367,7 @@
       alert('班級設定已儲存！');
     }
 
-    // 邏輯: 新增作業 (綁定學期版本)
+    // 邏輯: 新增作業
     function addHomework() {
       const title = document.getElementById('new-hw-title').value;
       const reward = parseInt(document.getElementById('new-hw-reward').value);
