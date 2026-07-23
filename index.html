@@ -410,7 +410,7 @@
 
           let deleteBtnHtml = '';
           if (isEditable) {
-            deleteBtnHtml = `<button onclick="deleteStudentHistoryRecord('${stId}', '${item.id}')" class="text-xs bg-rose-200 hover:bg-rose-300 text-rose-700 px-2 py-1 rounded-lg font-bold">🗑️ 刪除</button>`;
+            deleteBtnHtml = `<button onclick="deleteStudentHistoryRecord('${stId}', '${item.id}')" class="text-xs bg-rose-200 hover:bg-rose-300 text-rose-700 px-2.5 py-1 rounded-lg font-bold shadow-sm cursor-pointer">🗑️ 刪除</button>`;
           }
 
           container.innerHTML += `
@@ -454,8 +454,12 @@
 
         st.history.splice(idx, 1);
 
+        // 同步並儲存至本機與 Firebase
         syncData();
+        
+        // 重新整理明細視窗內容保持開啟狀態
         openStudentHistoryModal(stId, true); 
+        
         if (document.getElementById('asec-check') && !document.getElementById('asec-check').classList.contains('hidden')) {
           renderCheckList();
         }
@@ -961,7 +965,9 @@
       renderUI();
       localStorage.setItem('class_space_data', JSON.stringify(appData));
       if (db) {
-        db.ref('appData').set(appData);
+        db.ref('appData').set(appData).catch(err => {
+          console.error("Firebase 同步失敗：", err);
+        });
       }
     }
 
