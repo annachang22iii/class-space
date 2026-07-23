@@ -85,7 +85,7 @@
       <div class="flex border-b border-stone-100 mb-6 overflow-x-auto gap-2">
         <button onclick="switchAdminTab('quick')" id="atab-quick" class="px-4 py-2 font-bold text-stone-400 whitespace-nowrap">📝 課堂快速表揚</button>
         <button onclick="switchAdminTab('check')" id="atab-check" class="px-4 py-2 font-bold text-stone-400 whitespace-nowrap">📑 作業繳交點收簿</button>
-        <button onclick="switchAdminTab('students')" id="atab-students" class="px-4 py-2 font-bold text-stone-400 whitespace-nowrap">👥 學生管理</button>
+        <button onclick="switchAdminTab('students')" id="atab-students" class="px-4 py-2 font-bold text-stone-400 whitespace-nowrap">👥 學生與明細管理</button>
         <button onclick="switchAdminTab('hw')" id="atab-hw" class="px-4 py-2 font-bold tab-active whitespace-nowrap">📋 作業與規則管理</button>
         <button onclick="switchAdminTab('settings')" id="atab-settings" class="px-4 py-2 font-bold text-stone-400 whitespace-nowrap">⚙️ 班級設定</button>
       </div>
@@ -151,7 +151,7 @@
 
         <div>
           <div class="flex justify-between items-center mb-3">
-            <h3 class="font-bold text-stone-700">學生名單</h3>
+            <h3 class="font-bold text-stone-700">學生管理與資產明細審查</h3>
             <button onclick="confirmClearAllStudents()" class="text-xs bg-rose-100 text-rose-500 px-3 py-1.5 rounded-xl font-bold hover:bg-rose-200">⚠️ 清空全班學生名單</button>
           </div>
           <div id="admin-student-list" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3"></div>
@@ -204,7 +204,7 @@
     </div>
   </main>
 
-  <!-- 彈跳視窗 0: 歷史明細 (可刪除個別紀錄以修正金額) -->
+  <!-- 彈跳視窗 0: 歷史明細 (可切換是否帶刪除權限) -->
   <div id="modal-student-history" class="fixed inset-0 bg-stone-900/40 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
     <div class="bubble-card p-6 max-w-md w-full space-y-4 shadow-xl flex flex-col max-h-[85vh] bg-white">
       <div class="flex justify-between items-center border-b pb-3">
@@ -214,7 +214,7 @@
         </div>
         <button onclick="closeModal('modal-student-history')" class="text-stone-300 hover:text-stone-500 font-bold text-xl">&times;</button>
       </div>
-      <p class="text-xs text-rose-500 font-bold">💡 若有誤交或誤輸入，可點擊右側「刪除」該筆紀錄，系統會自動扣回/補回金額。</p>
+      <div id="history-tip-text"></div>
       <div id="history-list-container" class="overflow-y-auto flex-1 space-y-2 pr-1"></div>
       <div class="pt-2 border-t text-right">
         <button onclick="closeModal('modal-student-history')" class="px-4 py-2 bg-stone-100 hover:bg-stone-200 text-stone-600 rounded-xl font-bold text-xs">關閉</button>
@@ -379,7 +379,8 @@
       if (atab === 'check') renderCheckList();
     }
 
-    function openStudentHistoryModal(stId) {
+    // 開啟學生明細視窗 (isEditable: true 代表從後台開啟，具備刪除權限；false 代表前台學生檢視，純檢視)
+    function openStudentHistoryModal(stId, isEditable = false) {
       activeHistoryStudentId = stId;
       ensureStudentsObject();
       const st = appData.students[stId];
@@ -388,17 +389,29 @@
       document.getElementById('history-student-name').innerText = `${st.seat} 號 ${st.name} - 個人資產明細`;
       document.getElementById('history-student-balance').innerText = `目前總資產：${st.balance} ${appData.config.currencyName}`;
 
+      const tipContainer = document.getElementById('history-tip-text');
+      if (isEditable) {
+        tipContainer.innerHTML = `<p class="text-xs text-rose-500 font-bold mb-2">💡 【後台管理】若有誤交或誤輸入，可點擊右側「刪除」該筆紀錄，系統會自動扣回/補回金額。</p>`;
+      } else {
+        tipContainer.innerHTML = `<p class="text-xs text-stone-400 font-bold mb-2">💡 此處僅供檢視個人各項加分與作業繳交紀錄。</p>`;
+      }
+
       const container = document.getElementById('history-list-container');
       container.innerHTML = '';
 
       if (!st.history || st.history.length === 0) {
         container.innerHTML = `<p class="text-center text-stone-300 py-8 text-sm font-bold">尚無加減分或作業紀錄</p>`;
       } else {
-        st.history.forEach((item, index) => {
+        st.history.forEach((item) => {
           const isPositive = item.amount >= 0;
           const colorClass = isPositive ? 'text-teal-600 bg-teal-50 border-teal-200' : 'text-rose-500 bg-rose-50 border-rose-200';
           const sign = isPositive ? '+' : '';
           const dateTag = item.date ? `<span class="bg-white/60 px-1.5 py-0.5 rounded text-[10px] text-stone-500 mr-1 font-mono">${item.date}</span>` : '';
+
+          let deleteBtnHtml = '';
+          if (isEditable) {
+            deleteBtnHtml = `<button onclick="deleteStudentHistoryRecord('${stId}', '${item.id}')" class="text-xs bg-rose-200 hover:bg-rose-300 text-rose-700 px-2 py-1 rounded-lg font-bold">🗑️ 刪除</button>`;
+          }
 
           container.innerHTML += `
             <div class="p-3 rounded-2xl border-2 flex justify-between items-center ${colorClass}">
@@ -411,7 +424,7 @@
               </div>
               <div class="flex items-center gap-3">
                 <div class="font-extrabold text-base">${sign}${item.amount} ${appData.config.currencyName}</div>
-                <button onclick="deleteStudentHistoryRecord('${stId}', '${item.id}')" class="text-xs bg-rose-200 hover:bg-rose-300 text-rose-700 px-2 py-1 rounded-lg font-bold">🗑️ 刪除</button>
+                ${deleteBtnHtml}
               </div>
             </div>`;
         });
@@ -419,7 +432,7 @@
       openModal('modal-student-history');
     }
 
-    // 刪除個別歷史紀錄並自動校正金額與作業繳交狀態
+    // 刪除個別歷史紀錄並自動校正金額與作業繳交狀態 (限後台)
     function deleteStudentHistoryRecord(stId, recordId) {
       ensureStudentsObject();
       const st = appData.students[stId];
@@ -431,21 +444,18 @@
       const record = st.history[idx];
 
       if (confirm(`確定要刪除這筆紀錄嗎？\n[${record.reason}] (${record.amount >= 0 ? '+' : ''}${record.amount})\n系統將會自動扣回/補回該筆金額。`)) {
-        // 自動扣回或補回金額
         st.balance -= record.amount;
 
-        // 若該筆紀錄屬於作業繳交，同步清除當天的作業點收狀態
         if (record.hwId && record.date) {
           if (appData.hwRecords && appData.hwRecords[record.date] && appData.hwRecords[record.date][record.hwId]) {
             delete appData.hwRecords[record.date][record.hwId][stId];
           }
         }
 
-        // 從歷史中移除
         st.history.splice(idx, 1);
 
         syncData();
-        openStudentHistoryModal(stId); // 重新整理明細視窗
+        openStudentHistoryModal(stId, true); 
         if (document.getElementById('asec-check') && !document.getElementById('asec-check').classList.contains('hidden')) {
           renderCheckList();
         }
@@ -461,16 +471,16 @@
 
       const studentArray = Object.values(appData.students).filter(s => s && s.name).sort((a,b)=>a.seat-b.seat);
 
-      // 1. 前台排行榜
+      // 1. 前台排行榜 (點擊後開啟純檢視明細，無刪除按鈕)
       const grid = document.getElementById('student-cards-grid');
       grid.innerHTML = '';
       studentArray.forEach(s => {
         grid.innerHTML += `
-          <div onclick="openStudentHistoryModal('${s.id}')" class="bg-white p-4 rounded-2xl text-center border-2 border-stone-100 shadow-sm cursor-pointer hover:bg-rose-50 hover:border-rose-200 transition transform hover:-translate-y-1">
+          <div onclick="openStudentHistoryModal('${s.id}', false)" class="bg-white p-4 rounded-2xl text-center border-2 border-stone-100 shadow-sm cursor-pointer hover:bg-rose-50 hover:border-rose-200 transition transform hover:-translate-y-1">
             <div class="text-xs text-stone-400 font-bold">${s.seat} 號</div>
             <div class="font-bold text-stone-700 text-base mt-0.5">${s.name}</div>
             <div class="text-teal-600 font-extrabold mt-1 text-lg">${s.balance} <span class="text-xs">${appData.config.currencyName}</span></div>
-            <div class="text-[10px] text-stone-400 mt-1 font-bold">🔍 查明細/刪除</div>
+            <div class="text-[10px] text-stone-400 mt-1 font-bold">🔍 查詢個人明細</div>
           </div>`;
       });
 
@@ -521,7 +531,7 @@
           </li>`;
       });
 
-      // 5. 後台學生列表
+      // 5. 後台學生列表 (點擊可開啟具備刪除權限的管理視窗)
       const adminStList = document.getElementById('admin-student-list');
       adminStList.innerHTML = '';
       studentArray.forEach(s => {
@@ -537,9 +547,13 @@
                 <button onclick="deleteStudent('${s.id}')" class="text-xs bg-rose-50 text-rose-500 hover:bg-rose-100 px-2.5 py-1 rounded-xl font-bold">🗑️ 刪除</button>
               </div>
             </div>
-            <div onclick="openAdjustModal('${s.id}')" class="p-2.5 bg-teal-50 rounded-xl flex justify-between items-center cursor-pointer hover:bg-teal-100 transition">
-              <span class="text-xs font-bold text-teal-700">資產：${s.balance} ${appData.config.currencyName}</span>
-              <span class="text-xs text-teal-600 font-bold">手動加減分 ➔</span>
+            <div class="flex gap-2">
+              <div onclick="openStudentHistoryModal('${s.id}', true)" class="flex-1 p-2.5 bg-amber-50 rounded-xl flex justify-between items-center cursor-pointer hover:bg-amber-100 transition">
+                <span class="text-xs font-bold text-amber-700">明細/刪除紀錄 ➔</span>
+              </div>
+              <div onclick="openAdjustModal('${s.id}')" class="flex-1 p-2.5 bg-teal-50 rounded-xl flex justify-between items-center cursor-pointer hover:bg-teal-100 transition">
+                <span class="text-xs font-bold text-teal-700">手動加減分 ➔</span>
+              </div>
             </div>
           </div>`;
       });
@@ -559,7 +573,6 @@
       });
     }
 
-    // --- 單一新增學生 ---
     function addNewStudent() {
       ensureStudentsObject();
       const seatVal = document.getElementById('new-st-seat').value.trim();
@@ -586,7 +599,6 @@
       alert(`🎉 成功新增學生：${seat} 號 ${nameVal}`);
     }
 
-    // --- 批次解析學生 ---
     function processBatchInput() {
       ensureStudentsObject();
       const rawText = document.getElementById('batch-excel-input').value;
@@ -653,7 +665,6 @@
       reader.readAsArrayBuffer(file);
     }
 
-    // --- 作業點收簿邏輯 ---
     function renderCheckList() {
       ensureStudentsObject();
       const hwId = document.getElementById('check-hw-select').value;
@@ -713,7 +724,6 @@
         appData.students[stId].balance += hw.reward;
         addStudentHistory(stId, `作業點收：${hw.title}`, hw.reward, hwId, date);
       } else if (oldStatus === 'done' && targetStatus !== 'done') {
-        // 若改回未交或未訂正，自動尋找對應的歷史紀錄並扣回金額
         appData.students[stId].balance -= hw.reward;
         if (appData.students[stId].history) {
           const targetIdx = appData.students[stId].history.findIndex(h => h.hwId === hwId && h.date === date);
@@ -759,7 +769,6 @@
       renderCheckList();
     }
 
-    // --- 作業與快捷獎勵/扣分項目規則邏輯 ---
     function addHomework() {
       const title = document.getElementById('new-hw-title').value.trim();
       let rawReward = document.getElementById('new-hw-reward').value.trim().replace(/\+/g, '');
@@ -889,12 +898,10 @@
       syncData();
     }
 
-    // --- 條碼槍 / 掃描機 / 輸入座號自動繳交邏輯 ---
     function handleBarcodeSubmit(rawValue) {
       const cleaned = rawValue.trim();
       if (!cleaned) return;
 
-      // 支援直接輸入座號 (例如 "1" 或 "1號")
       let seatNum = parseInt(cleaned.replace(/[^\d]/g, ''));
       if (isNaN(seatNum)) {
         return alert(`⚠️ 找不到對應的座號：${cleaned}`);
@@ -917,13 +924,11 @@
       if (!appData.hwRecords[today]) appData.hwRecords[today] = {};
       if (!appData.hwRecords[today][hwId]) appData.hwRecords[today][hwId] = {};
 
-      // 檢查是否重複繳交
       if (appData.hwRecords[today][hwId][stId] === 'done') {
         alert(`⚠️ ${student.seat}號 ${student.name} 今天已經繳交過「${hw.title}」囉！`);
         return;
       }
 
-      // 進行繳交與加分
       student.balance += hw.reward;
       addStudentHistory(stId, `條碼繳交：${hw.title}`, hw.reward, hwId, today);
       appData.hwRecords[today][hwId][stId] = 'done';
@@ -1032,7 +1037,6 @@
       const rawConfig = localStorage.getItem('firebase_config_raw');
       if (rawConfig) initFirebase(rawConfig);
 
-      // 監聽條碼輸入框的 Enter 鍵或掃描槍自動輸入
       const barcodeInput = document.getElementById('barcode-input-field');
       if (barcodeInput) {
         barcodeInput.addEventListener('keydown', function(e) {
