@@ -69,14 +69,14 @@
     </div>
   </main>
 
-  <!-- 區塊 3: 教師後台 -->
+  <!-- 區塊 3: 教師後台 (密碼解鎖後顯示) -->
   <main id="sec-admin" class="hidden space-y-6">
     <div class="bg-white rounded-2xl p-6 shadow-sm border-t-4 border-slate-800">
       <!-- 後台導覽選單 -->
       <div class="flex border-b mb-6 overflow-x-auto gap-2">
         <button onclick="switchAdminTab('quick')" id="atab-quick" class="px-4 py-2 font-bold tab-active whitespace-nowrap">📝 課堂快速表揚</button>
-        <button onclick="switchAdminTab('students')" id="atab-students" class="px-4 py-2 font-bold text-gray-500 whitespace-nowrap">👥 學生管理 (新增/編輯/刪除/加減分)</button>
-        <button onclick="switchAdminTab('hw')" id="atab-hw" class="px-4 py-2 font-bold text-gray-500 whitespace-nowrap">📋 作業與規則版本</button>
+        <button onclick="switchAdminTab('students')" id="atab-students" class="px-4 py-2 font-bold text-gray-500 whitespace-nowrap">👥 學生管理</button>
+        <button onclick="switchAdminTab('hw')" id="atab-hw" class="px-4 py-2 font-bold text-gray-500 whitespace-nowrap">📋 作業與規則管理</button>
         <button onclick="switchAdminTab('settings')" id="atab-settings" class="px-4 py-2 font-bold text-gray-500 whitespace-nowrap">⚙️ 班級設定</button>
       </div>
 
@@ -93,21 +93,21 @@
         </div>
 
         <div class="max-w-lg border-t pt-4">
-          <h4 class="font-bold text-sm text-gray-700 mb-2">管理／新增快速按鈕：</h4>
+          <h4 class="font-bold text-sm text-gray-700 mb-2">新增快速表揚按鈕：</h4>
           <div class="flex gap-2">
             <input type="text" id="new-qbtn-name" placeholder="按鈕名稱 (例：主動幫忙)" class="flex-1 p-2 border rounded-lg text-sm">
             <input type="number" id="new-qbtn-amount" placeholder="金額" class="w-24 p-2 border rounded-lg text-sm" value="20">
             <button onclick="addQuickButton()" class="px-4 py-2 bg-emerald-600 text-white font-bold rounded-lg text-sm hover:bg-emerald-700">新增按鈕</button>
           </div>
-          <ul id="quick-btn-manage-list" class="space-y-2 text-sm pt-3"></ul>
+          <h4 class="font-bold text-sm text-gray-700 mt-4 mb-2">管理現有表揚按鈕：</h4>
+          <ul id="quick-btn-manage-list" class="space-y-2 text-sm pt-1"></ul>
         </div>
       </div>
 
-      <!-- 子分頁 2: 學生管理 (包含新增、編輯、刪除、手動加減分) -->
+      <!-- 子分頁 2: 學生管理 -->
       <div id="asec-students" class="hidden space-y-6">
-        <!-- 手動新增單一學生 -->
         <div class="bg-gray-50 p-4 rounded-xl border max-w-lg space-y-3">
-          <h4 class="font-bold text-sm text-gray-700">➕ 新增單一學生</h4>
+          <h4 class="font-bold text-sm text-gray-700">➕ 新增學生</h4>
           <div class="flex gap-2">
             <input type="number" id="new-st-seat" placeholder="座號" class="w-20 p-2 border rounded-lg text-sm">
             <input type="text" id="new-st-name" placeholder="學生姓名" class="flex-1 p-2 border rounded-lg text-sm">
@@ -116,21 +116,21 @@
         </div>
 
         <div>
-          <h3 class="font-bold text-gray-700 mb-3">學生名單列表（點擊卡片可加減分，或進行編輯/刪除）</h3>
+          <h3 class="font-bold text-gray-700 mb-3">學生名單（點擊「加減分」調整金額，或使用編輯／刪除）</h3>
           <div id="admin-student-list" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3"></div>
         </div>
       </div>
 
       <!-- 子分頁 3: 作業與規則版本 -->
       <div id="asec-hw" class="hidden space-y-4 max-w-lg">
-        <h3 class="font-bold text-gray-700">新增作業項目（自動綁定當前學期規則版本）</h3>
+        <h3 class="font-bold text-gray-700">➕ 新增作業項目</h3>
         <div class="space-y-2">
           <input type="text" id="new-hw-title" placeholder="作業名稱 (例：國語習作第1課)" class="w-full p-2 border rounded-lg text-sm">
           <input type="number" id="new-hw-reward" placeholder="獎勵金額" class="w-full p-2 border rounded-lg text-sm" value="30">
           <button onclick="addHomework()" class="w-full py-2 bg-emerald-600 text-white font-bold rounded-lg text-sm hover:bg-emerald-700">+ 新增作業規則</button>
         </div>
         <hr class="my-4">
-        <h4 class="font-bold text-sm text-gray-500">已建立的作業與歷史規則版本：</h4>
+        <h4 class="font-bold text-sm text-gray-700">管理現有作業規則：</h4>
         <ul id="hw-rule-list" class="space-y-2 text-sm"></ul>
       </div>
 
@@ -146,7 +146,7 @@
           <input type="text" id="cfg-semester" class="w-full p-2 border rounded-lg text-sm" value="114學年度上學期">
         </div>
         <div>
-          <label class="block text-sm text-gray-500">班級預設座號人數：</label>
+          <label class="block text-sm text-gray-500">預設座號數量 (初次初始化用)：</label>
           <input type="number" id="cfg-student-count" class="w-full p-2 border rounded-lg text-sm" value="25" min="1" max="60">
         </div>
         <div>
@@ -206,19 +206,31 @@
     };
 
     let db = null;
+    let isAdminUnlocked = false; // 是否已驗證密碼
 
     // 初始化學生資料
     function initStudents(count) {
-      for (let i = 1; i <= count; i++) {
-        const id = 's' + i;
-        if (!appData.students[id]) {
+      if (Object.keys(appData.students).length === 0) {
+        for (let i = 1; i <= count; i++) {
+          const id = 's' + i;
           appData.students[id] = { id, seat: i, name: i + "號學生", balance: 0 };
         }
       }
     }
 
-    // 主頁籤切換
+    // 主頁籤切換（加入密碼保護機制）
     function switchTab(tab) {
+      if (tab === 'admin' && !isAdminUnlocked) {
+        const pwd = prompt("🔒 請輸入教師後台解鎖密碼：");
+        if (pwd === "1102") {
+          isAdminUnlocked = true;
+          alert("🔓 密碼正確，歡迎進入教師後台！");
+        } else {
+          alert("❌ 密碼錯誤！無法存取後台。");
+          return;
+        }
+      }
+
       ['submit', 'view', 'admin'].forEach(t => {
         document.getElementById('sec-' + t).classList.add('hidden');
       });
@@ -235,14 +247,14 @@
       document.getElementById('atab-' + atab).className = "px-4 py-2 font-bold tab-active whitespace-nowrap";
     }
 
-    // 渲染 UI
+    // 渲染全域 UI
     function renderUI() {
       // 標題與基礎設定
       document.getElementById('header-class-name').innerText = appData.config.className;
       document.getElementById('header-subtitle').innerText = `${appData.config.semester} | 智慧作業繳交 × 班級銀行`;
       document.getElementById('currency-tag').innerText = `貨幣：${appData.config.currencyName}`;
 
-      // 渲染學生卡片 (前台檢視區)
+      // 1. 渲染學生卡片 (前台檢視區)
       const grid = document.getElementById('student-cards-grid');
       grid.innerHTML = '';
       Object.values(appData.students).sort((a,b)=>a.seat-b.seat).forEach(s => {
@@ -255,28 +267,28 @@
         `;
       });
 
-      // 渲染前台學生選單 (條碼區)
+      // 2. 渲染前台學生選單 (條碼區)
       const stSelect = document.getElementById('submit-student-select');
       stSelect.innerHTML = '';
       Object.values(appData.students).sort((a,b)=>a.seat-b.seat).forEach(s => {
         stSelect.innerHTML += `<option value="${s.id}">${s.seat} 號 ${s.name}</option>`;
       });
 
-      // 渲染後台快速表揚學生選單
+      // 3. 渲染後台快速表揚學生選單
       const adminStSelect = document.getElementById('admin-quick-student-select');
       adminStSelect.innerHTML = '';
       Object.values(appData.students).sort((a,b)=>a.seat-b.seat).forEach(s => {
         adminStSelect.innerHTML += `<option value="${s.id}">${s.seat} 號 ${s.name}</option>`;
       });
 
-      // 渲染作業選單
+      // 4. 渲染作業選單
       const hwSelect = document.getElementById('submit-hw-select');
       hwSelect.innerHTML = '';
       appData.homeworks.forEach(h => {
         hwSelect.innerHTML += `<option value="${h.id}">${h.title} ( +${h.reward} ${appData.config.currencyName} | ${h.version} )</option>`;
       });
 
-      // 渲染快速按鈕 (後台區)
+      // 5. 渲染表揚快捷按鈕 (後台區)
       const qContainer = document.getElementById('quick-btn-container');
       qContainer.innerHTML = '';
       appData.quickButtons.forEach(q => {
@@ -287,7 +299,7 @@
         `;
       });
 
-      // 渲染後台學生清單 (包含新增、編輯姓名、刪除、手動加減分)
+      // 6. 渲染後台學生清單 (可編輯、刪除、手動加減分)
       const adminStList = document.getElementById('admin-student-list');
       adminStList.innerHTML = '';
       Object.values(appData.students).sort((a,b)=>a.seat-b.seat).forEach(s => {
@@ -299,8 +311,8 @@
                 <span class="font-bold text-gray-800 ml-1">${s.name}</span>
               </div>
               <div class="flex gap-1">
-                <button onclick="editStudentName('${s.id}')" title="編輯姓名" class="text-xs bg-gray-100 p-1 rounded hover:bg-gray-200">✏️</button>
-                <button onclick="deleteStudent('${s.id}')" title="刪除學生" class="text-xs bg-red-50 text-red-600 p-1 rounded hover:bg-red-100">🗑️</button>
+                <button onclick="editStudentName('${s.id}')" title="編輯姓名" class="text-xs bg-gray-100 px-2 py-1 rounded hover:bg-gray-200">✏️ 編輯</button>
+                <button onclick="deleteStudent('${s.id}')" title="刪除學生" class="text-xs bg-red-50 text-red-600 px-2 py-1 rounded hover:bg-red-100">🗑️ 刪除</button>
               </div>
             </div>
             <div onclick="openAdjustModal('${s.id}')" class="p-2 bg-emerald-50 rounded-lg flex justify-between items-center cursor-pointer hover:bg-emerald-100">
@@ -311,34 +323,50 @@
         `;
       });
 
-      // 渲染作業與版本規則清單
+      // 7. 渲染作業管理與規則清單
       const hwRuleList = document.getElementById('hw-rule-list');
       hwRuleList.innerHTML = '';
       appData.homeworks.forEach(h => {
-        hwRuleList.innerHTML += `<li class="p-2 bg-gray-50 rounded border">📌 <strong>${h.title}</strong>：+${h.reward} (${h.version})</li>`;
+        hwRuleList.innerHTML += `
+          <li class="p-2 bg-gray-50 rounded border flex justify-between items-center">
+            <span>📌 <strong>${h.title}</strong>：+${h.reward} ${appData.config.currencyName} <span class="text-xs text-gray-400">(${h.version})</span></span>
+            <div class="flex gap-1">
+              <button onclick="editHomework('${h.id}')" class="text-xs bg-gray-200 px-2 py-1 rounded hover:bg-gray-300">✏️ 編輯</button>
+              <button onclick="deleteHomework('${h.id}')" class="text-xs bg-red-100 text-red-600 px-2 py-1 rounded hover:bg-red-200">🗑️ 刪除</button>
+            </div>
+          </li>
+        `;
       });
 
-      // 渲染快速按鈕管理清單
+      // 8. 渲染快速按鈕管理清單
       const qManageList = document.getElementById('quick-btn-manage-list');
       qManageList.innerHTML = '';
       appData.quickButtons.forEach(q => {
-        qManageList.innerHTML += `<li class="p-2 bg-gray-50 rounded border flex justify-between"><span>${q.name} (+${q.amount})</span></li>`;
+        qManageList.innerHTML += `
+          <li class="p-2 bg-gray-50 rounded border flex justify-between items-center">
+            <span>${q.name} (+${q.amount})</span>
+            <div class="flex gap-1">
+              <button onclick="editQuickButton('${q.id}')" class="text-xs bg-gray-200 px-2 py-1 rounded hover:bg-gray-300">✏️ 編輯</button>
+              <button onclick="deleteQuickButton('${q.id}')" class="text-xs bg-red-100 text-red-600 px-2 py-1 rounded hover:bg-red-200">🗑️ 刪除</button>
+            </div>
+          </li>
+        `;
       });
     }
 
-    // 邏輯: 手動新增學生
+    // --- 學生 CRUD 邏輯 ---
     function addNewStudent() {
       const seat = parseInt(document.getElementById('new-st-seat').value);
-      const name = document.getElementById('new-st-name').value;
-      if (!seat || !name) return alert('請輸入完整的座號與姓名');
+      const name = document.getElementById('new-st-name').value.trim();
+      if (!seat || !name) return alert('請輸入完整的座號與姓名！');
       const id = 's' + seat;
       appData.students[id] = { id, seat, name, balance: 0 };
       syncData();
       document.getElementById('new-st-seat').value = '';
       document.getElementById('new-st-name').value = '';
+      alert(`✅ 成功新增學生：${seat}號 ${name}`);
     }
 
-    // 邏輯: 編輯學生姓名
     function editStudentName(stId) {
       const currentName = appData.students[stId].name;
       const newName = prompt('請輸入新的學生姓名：', currentName);
@@ -348,7 +376,6 @@
       }
     }
 
-    // 邏輯: 刪除學生
     function deleteStudent(stId) {
       if (confirm(`確定要刪除 ${appData.students[stId].seat}號 ${appData.students[stId].name} 嗎？`)) {
         delete appData.students[stId];
@@ -356,22 +383,11 @@
       }
     }
 
-    // 邏輯: 儲存班級設定
-    function saveClassSettings() {
-      appData.config.className = document.getElementById('cfg-class-name').value;
-      appData.config.semester = document.getElementById('cfg-semester').value;
-      appData.config.studentCount = parseInt(document.getElementById('cfg-student-count').value);
-      appData.config.currencyName = document.getElementById('cfg-currency-name').value;
-      initStudents(appData.config.studentCount);
-      syncData();
-      alert('班級設定已儲存！');
-    }
-
-    // 邏輯: 新增作業
+    // --- 作業 CRUD 邏輯 ---
     function addHomework() {
-      const title = document.getElementById('new-hw-title').value;
+      const title = document.getElementById('new-hw-title').value.trim();
       const reward = parseInt(document.getElementById('new-hw-reward').value);
-      if (!title) return alert('請輸入作業名稱');
+      if (!title || isNaN(reward)) return alert('請完整填寫作業名稱與獎勵金額！');
       appData.homeworks.push({
         id: 'hw_' + Date.now(),
         title,
@@ -380,34 +396,83 @@
       });
       syncData();
       document.getElementById('new-hw-title').value = '';
+      alert(`✅ 成功新增作業規則：${title}`);
     }
 
-    // 邏輯: 新增快速按鈕
+    function editHomework(hwId) {
+      const hw = appData.homeworks.find(h => h.id === hwId);
+      if (!hw) return;
+      const newTitle = prompt('請修改作業名稱：', hw.title);
+      const newReward = prompt('請修改獎勵金額：', hw.reward);
+      if (newTitle && !isNaN(parseInt(newReward))) {
+        hw.title = newTitle.trim();
+        hw.reward = parseInt(newReward);
+        syncData();
+      }
+    }
+
+    function deleteHomework(hwId) {
+      if (confirm('確定要刪除這項作業規則嗎？')) {
+        appData.homeworks = appData.homeworks.filter(h => h.id !== hwId);
+        syncData();
+      }
+    }
+
+    // --- 表揚快捷按鈕 CRUD 邏輯 ---
     function addQuickButton() {
-      const name = document.getElementById('new-qbtn-name').value;
+      const name = document.getElementById('new-qbtn-name').value.trim();
       const amount = parseInt(document.getElementById('new-qbtn-amount').value);
-      if (!name) return alert('請輸入按鈕名稱');
+      if (!name || isNaN(amount)) return alert('請完整填寫按鈕名稱與獎勵金額！');
       appData.quickButtons.push({ id: 'q_' + Date.now(), name, amount });
       syncData();
       document.getElementById('new-qbtn-name').value = '';
+      alert(`✅ 成功新增獎勵按鈕：${name}`);
     }
 
-    // 邏輯: 條碼繳交 (前台)
+    function editQuickButton(qId) {
+      const q = appData.quickButtons.find(item => item.id === qId);
+      if (!q) return;
+      const newName = prompt('請修改按鈕名稱：', q.name);
+      const newAmount = prompt('請修改金額：', q.amount);
+      if (newName && !isNaN(parseInt(newAmount))) {
+        q.name = newName.trim();
+        q.amount = parseInt(newAmount);
+        syncData();
+      }
+    }
+
+    function deleteQuickButton(qId) {
+      if (confirm('確定要刪除這個表揚按鈕嗎？')) {
+        appData.quickButtons = appData.quickButtons.filter(q => q.id !== qId);
+        syncData();
+      }
+    }
+
+    // --- 班級設定與交易觸發 ---
+    function saveClassSettings() {
+      appData.config.className = document.getElementById('cfg-class-name').value;
+      appData.config.semester = document.getElementById('cfg-semester').value;
+      appData.config.studentCount = parseInt(document.getElementById('cfg-student-count').value);
+      appData.config.currencyName = document.getElementById('cfg-currency-name').value;
+      initStudents(appData.config.studentCount);
+      syncData();
+      alert('✅ 班級設定已成功儲存！');
+    }
+
     function handleQuickSubmit() {
       const stId = document.getElementById('submit-student-select').value;
       const hwId = document.getElementById('submit-hw-select').value;
       const hw = appData.homeworks.find(h => h.id === hwId);
-      if (!stId || !hw) return alert('請選擇作業與學生');
+      if (!stId || !hw) return alert('請先選擇作業與學生！');
 
       appData.students[stId].balance += hw.reward;
       alert(`🎉 ${appData.students[stId].name} 完成「${hw.title}」，獲得 +${hw.reward} ${appData.config.currencyName}！`);
       syncData();
     }
 
-    // 邏輯: 後台快速按鈕發錢
     function triggerQuickReward(reason, amount) {
       const stId = document.getElementById('admin-quick-student-select').value;
-      if (!stId) return alert('請先選擇學生');
+      if (!stId) return alert('請先選擇學生！');
       appData.students[stId].balance += amount;
       alert(`🌟 ${appData.students[stId].name} 【${reason}】，獲得 +${amount} ${appData.config.currencyName}！`);
       syncData();
@@ -428,10 +493,10 @@
       const stId = document.getElementById('adjust-student-id').value;
       const amount = parseInt(document.getElementById('adjust-amount').value);
       const reason = document.getElementById('adjust-reason').value || '手動調整';
-      if (isNaN(amount)) return alert('請輸入有效金額');
+      if (isNaN(amount)) return alert('請輸入有效金額！');
 
       appData.students[stId].balance += amount;
-      alert(`已更新！${appData.students[stId].name} (${reason}) 金額變動：${amount}`);
+      alert(`✅ 已更新！${appData.students[stId].name} (${reason}) 金額變動：${amount}`);
       closeAdjustModal();
       syncData();
     }
