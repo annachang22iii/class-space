@@ -291,7 +291,19 @@
     </div>
   </div>
 
-  <!-- 自訂美觀確認對話框 (取代瀏覽器原生 confirm) -->
+  <!-- 自訂美觀提示對話框 (單一按鈕，取代原生 alert) -->
+  <div id="modal-custom-alert" class="fixed inset-0 bg-stone-900/40 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
+    <div class="bubble-card p-6 max-w-sm w-full space-y-4 shadow-xl bg-white text-center">
+      <div class="text-3xl">✨</div>
+      <h3 id="custom-alert-title" class="text-lg font-bold text-stone-700">班級小宇宙 提示</h3>
+      <p id="custom-alert-text" class="text-sm text-stone-600 font-medium whitespace-pre-line"></p>
+      <div class="pt-2">
+        <button id="custom-alert-ok-btn" class="w-full py-2.5 bg-rose-400 text-white rounded-xl font-bold text-sm hover:bg-rose-500 shadow-sm">確定</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 自訂美觀確認對話框 (雙按鈕，取代原生 confirm) -->
   <div id="modal-custom-confirm" class="fixed inset-0 bg-stone-900/40 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
     <div class="bubble-card p-6 max-w-sm w-full space-y-4 shadow-xl bg-white text-center">
       <div class="text-3xl">💡</div>
@@ -325,7 +337,22 @@
     function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
     function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
 
-    // 自訂漂亮的 Confirm 對話框取代原生難看的網址提示
+    // 自訂美觀 Alert 提示框 (取代瀏覽器原生 alert)
+    function showAlert(message, onOk) {
+      document.getElementById('custom-alert-text').innerText = message;
+      openModal('modal-custom-alert');
+
+      const okBtn = document.getElementById('custom-alert-ok-btn');
+      const newOkBtn = okBtn.cloneNode(true);
+      okBtn.parentNode.replaceChild(newOkBtn, okBtn);
+
+      newOkBtn.onclick = function() {
+        closeModal('modal-custom-alert');
+        if (typeof onOk === 'function') onOk();
+      };
+    }
+
+    // 自訂美觀 Confirm 對話框 (取代瀏覽器原生 confirm)
     function showCustomConfirm(message, onConfirm) {
       document.getElementById('custom-confirm-text').innerText = message;
       openModal('modal-custom-confirm');
@@ -333,7 +360,6 @@
       const okBtn = document.getElementById('custom-confirm-ok-btn');
       const cancelBtn = document.getElementById('custom-confirm-cancel-btn');
 
-      // 移除舊的事件避免重複綁定
       const newOkBtn = okBtn.cloneNode(true);
       const newCancelBtn = cancelBtn.cloneNode(true);
       okBtn.parentNode.replaceChild(newOkBtn, okBtn);
@@ -415,7 +441,6 @@
       if (atab === 'check') renderCheckList();
     }
 
-    // 開啟學生明細視窗 (isEditable: true 代表從後台開啟，具備刪除權限)
     function openStudentHistoryModal(stId, isEditable = false) {
       activeHistoryStudentId = stId;
       ensureStudentsObject();
@@ -477,7 +502,6 @@
       openModal('modal-student-history');
     }
 
-    // 刪除個別歷史紀錄並自動校正金額與作業繳交狀態 (限後台)
     function deleteStudentHistoryRecord(stId, recordId) {
       ensureStudentsObject();
       const st = appData.students[stId];
@@ -499,10 +523,7 @@
 
         st.history.splice(idx, 1);
 
-        // 同步並儲存至本機與 Firebase
         syncData();
-        
-        // 重新整理明細視窗內容保持開啟狀態
         openStudentHistoryModal(stId, true); 
         
         if (document.getElementById('asec-check') && !document.getElementById('asec-check').classList.contains('hidden')) {
@@ -520,7 +541,6 @@
 
       const studentArray = Object.values(appData.students).filter(s => s && s.name).sort((a,b)=>a.seat-b.seat);
 
-      // 1. 前台排行榜 (點擊後開啟純檢視明細，無刪除按鈕)
       const grid = document.getElementById('student-cards-grid');
       grid.innerHTML = '';
       studentArray.forEach(s => {
@@ -533,7 +553,6 @@
           </div>`;
       });
 
-      // 2. 下拉選單 (後台快速加分用)
       const adminStSelect = document.getElementById('admin-quick-student-select');
       adminStSelect.innerHTML = '';
       studentArray.forEach(s => {
@@ -541,7 +560,6 @@
         adminStSelect.innerHTML += opt;
       });
 
-      // 3. 作業選單與作業規則清單
       const hwSelect = document.getElementById('submit-hw-select');
       const checkHwSelect = document.getElementById('check-hw-select');
       const hwRuleList = document.getElementById('hw-rule-list');
@@ -561,7 +579,6 @@
           </li>`;
       });
 
-      // 4. 快捷獎勵/扣分項目清單
       const qbRuleList = document.getElementById('qb-rule-list');
       qbRuleList.innerHTML = '';
       if (!appData.quickButtons) appData.quickButtons = [];
@@ -580,7 +597,6 @@
           </li>`;
       });
 
-      // 5. 後台學生列表 (點擊可開啟具備刪除權限的管理視窗)
       const adminStList = document.getElementById('admin-student-list');
       adminStList.innerHTML = '';
       studentArray.forEach(s => {
@@ -607,7 +623,6 @@
           </div>`;
       });
 
-      // 6. 快速表揚/扣分按鈕
       const qContainer = document.getElementById('quick-btn-container');
       qContainer.innerHTML = '';
       appData.quickButtons.forEach(q => {
@@ -629,7 +644,7 @@
 
       const seat = parseInt(seatVal);
       if (isNaN(seat) || !nameVal) {
-        return alert('⚠️ 請填寫正確的座號與姓名！');
+        return showAlert('⚠️ 請填寫正確的座號與姓名！');
       }
 
       const id = 's' + seat;
@@ -645,13 +660,13 @@
       document.getElementById('new-st-name').value = '';
 
       syncData();
-      alert(`🎉 成功新增學生：${seat} 號 ${nameVal}`);
+      showAlert(`🎉 成功新增學生：${seat} 號 ${nameVal}`);
     }
 
     function processBatchInput() {
       ensureStudentsObject();
       const rawText = document.getElementById('batch-excel-input').value;
-      if (!rawText.trim()) return alert('⚠️ 輸入框是空的，請先貼上內容！');
+      if (!rawText.trim()) return showAlert('⚠️ 輸入框是空的，請先貼上內容！');
 
       let count = 0;
       const lines = rawText.split(/\r?\n/);
@@ -682,9 +697,9 @@
       if (count > 0) {
         document.getElementById('batch-excel-input').value = '';
         syncData();
-        alert(`🎉 成功匯入 ${count} 位學生！`);
+        showAlert(`🎉 成功匯入 ${count} 位學生！`);
       } else {
-        alert('❌ 解析失敗！請確保每行格式類似：「1 張小明」或「1\t張小明」');
+        showAlert('❌ 解析失敗！請確保每行格式類似：「1 張小明」或「1\t張小明」');
       }
     }
 
@@ -708,7 +723,7 @@
           document.getElementById('batch-excel-input').value = textResult;
           processBatchInput();
         } catch(err) {
-          alert('解析 Excel 檔案失敗，請直接複製 Excel 文字貼上至框內！');
+          showAlert('解析 Excel 檔案失敗，請直接複製 Excel 文字貼上至框內！');
         }
       };
       reader.readAsArrayBuffer(file);
@@ -823,7 +838,7 @@
       let rawReward = document.getElementById('new-hw-reward').value.trim().replace(/\+/g, '');
       const reward = parseInt(rawReward);
 
-      if (!title || isNaN(reward)) return alert('⚠️ 請輸入有效的作業名稱與獎勵金額！');
+      if (!title || isNaN(reward)) return showAlert('⚠️ 請輸入有效的作業名稱與獎勵金額！');
 
       if (!appData.homeworks) appData.homeworks = [];
       const id = 'hw_' + Date.now();
@@ -833,7 +848,7 @@
       document.getElementById('new-hw-reward').value = '30';
       
       syncData();
-      alert(`🎉 成功新增作業項目：「${title}」！`);
+      showAlert(`🎉 成功新增作業項目：「${title}」！`);
     }
 
     function deleteHomework(hwId) {
@@ -848,7 +863,7 @@
       const rawAmountStr = document.getElementById('new-qb-amount').value.trim();
       const amount = parseInt(rawAmountStr);
 
-      if (!name || isNaN(amount)) return alert('⚠️ 請輸入有效的項目名稱與金額（加分填正數，扣分填負數）！');
+      if (!name || isNaN(amount)) return showAlert('⚠️ 請輸入有效的項目名稱與金額（加分填正數，扣分填負數）！');
 
       const id = 'qb_' + Date.now();
       if (!appData.quickButtons) appData.quickButtons = [];
@@ -858,7 +873,7 @@
       document.getElementById('new-qb-amount').value = '20';
 
       syncData();
-      alert(`🎉 成功新增項目：「${name} (${amount >= 0 ? '+' : ''}${amount})」！`);
+      showAlert(`🎉 成功新增項目：「${name} (${amount >= 0 ? '+' : ''}${amount})」！`);
     }
 
     function openEditQuickButtonModal(qbId) {
@@ -876,7 +891,7 @@
       const rawAmountStr = document.getElementById('edit-qb-amount-input').value.trim();
       const amount = parseInt(rawAmountStr);
 
-      if (!name || isNaN(amount)) return alert('請輸入有效的項目名稱與金額！');
+      if (!name || isNaN(amount)) return showAlert('請輸入有效的項目名稱與金額！');
 
       const qb = appData.quickButtons.find(q => q.id === id);
       if (qb) {
@@ -936,7 +951,7 @@
       const amount = parseInt(document.getElementById('adjust-amount').value);
       const reason = document.getElementById('adjust-reason').value.trim() || '手動調整';
 
-      if (isNaN(amount)) return alert('請輸入有效數字！');
+      if (isNaN(amount)) return showAlert('請輸入有效數字！');
       appData.students[stId].balance += amount;
       addStudentHistory(stId, reason, amount);
 
@@ -953,7 +968,7 @@
 
       let seatNum = parseInt(cleaned.replace(/[^\d]/g, ''));
       if (isNaN(seatNum)) {
-        return alert(`⚠️ 找不到對應的座號：${cleaned}`);
+        return showAlert(`⚠️ 找不到對應的座號：${cleaned}`);
       }
 
       const stId = 's' + seatNum;
@@ -961,12 +976,12 @@
       const student = appData.students[stId];
 
       if (!student) {
-        return alert(`❌ 查無座號 ${seatNum} 的學生，請確認名單是否正確！`);
+        return showAlert(`❌ 查無座號 ${seatNum} 的學生，請確認名單是否正確！`);
       }
 
       const hwId = document.getElementById('submit-hw-select').value;
       const hw = appData.homeworks.find(h => h.id === hwId);
-      if (!hw) return alert('請先選擇要繳交的作業項目！');
+      if (!hw) return showAlert('請先選擇要繳交的作業項目！');
 
       const today = getTodayString();
       if (!appData.hwRecords) appData.hwRecords = {};
@@ -974,7 +989,7 @@
       if (!appData.hwRecords[today][hwId]) appData.hwRecords[today][hwId] = {};
 
       if (appData.hwRecords[today][hwId][stId] === 'done') {
-        alert(`⚠️ ${student.seat}號 ${student.name} 今天已經繳交過「${hw.title}」囉！`);
+        showAlert(`⚠️ ${student.seat}號 ${student.name} 今天已經繳交過「${hw.title}」囉！`);
         return;
       }
 
@@ -983,18 +998,18 @@
       appData.hwRecords[today][hwId][stId] = 'done';
 
       syncData();
-      alert(`🎉 成功！${student.seat}號 ${student.name} 完成「${hw.title}」，獲得 +${hw.reward} ${appData.config.currencyName}！`);
+      showAlert(`🎉 成功！${student.seat}號 ${student.name} 完成「${hw.title}」，獲得 +${hw.reward} ${appData.config.currencyName}！`);
     }
 
     function triggerQuickReward(reason, amount) {
       const stId = document.getElementById('admin-quick-student-select').value;
-      if (!stId) return alert('請先選擇學生！');
+      if (!stId) return showAlert('請先選擇學生！');
 
       appData.students[stId].balance += amount;
       addStudentHistory(stId, `${amount >= 0 ? '課堂表揚' : '課堂扣分'}：${reason}`, amount);
 
       const actionText = amount >= 0 ? `+${amount}` : `${amount}`;
-      alert(`🔔 ${appData.students[stId].name} 【${reason}】 ${actionText} ${appData.config.currencyName}！`);
+      showAlert(`🔔 ${appData.students[stId].name} 【${reason}】 ${actionText} ${appData.config.currencyName}！`);
       syncData();
     }
 
@@ -1002,7 +1017,7 @@
       appData.config.className = document.getElementById('cfg-class-name').value;
       appData.config.currencyName = document.getElementById('cfg-currency-name').value;
       syncData();
-      alert('✅ 設定已更新！');
+      showAlert('✅ 設定已更新！');
     }
 
     function syncData() {
@@ -1063,14 +1078,15 @@
 
     function saveFirebaseConfig() {
       const raw = document.getElementById('firebase-config-input').value.trim();
-      if (!raw) return alert('請貼上有效的 Firebase 設定！');
+      if (!raw) return showAlert('請貼上有效的 Firebase 設定！');
 
       localStorage.setItem('firebase_config_raw', raw);
       if (initFirebase(raw)) {
-        alert('🎉 Firebase 雲端連線成功！');
-        closeModal('modal-firebase');
+        showAlert('🎉 Firebase 雲端連線成功！', function() {
+          closeModal('modal-firebase');
+        });
       } else {
-        alert('❌ Firebase 金鑰格式錯誤或連線失敗，請檢查輸入內容！');
+        showAlert('❌ Firebase 金鑰格式錯誤或連線失敗，請檢查輸入內容！');
       }
     }
 
