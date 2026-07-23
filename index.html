@@ -291,6 +291,19 @@
     </div>
   </div>
 
+  <!-- 自訂美觀確認對話框 (取代瀏覽器原生 confirm) -->
+  <div id="modal-custom-confirm" class="fixed inset-0 bg-stone-900/40 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
+    <div class="bubble-card p-6 max-w-sm w-full space-y-4 shadow-xl bg-white text-center">
+      <div class="text-3xl">💡</div>
+      <h3 id="custom-confirm-title" class="text-lg font-bold text-stone-700">班級小宇宙 提示</h3>
+      <p id="custom-confirm-text" class="text-sm text-stone-600 font-medium whitespace-pre-line"></p>
+      <div class="flex justify-center gap-2 pt-2">
+        <button id="custom-confirm-cancel-btn" class="flex-1 py-2.5 bg-stone-100 text-stone-600 rounded-xl font-bold text-sm hover:bg-stone-200">取消</button>
+        <button id="custom-confirm-ok-btn" class="flex-1 py-2.5 bg-rose-400 text-white rounded-xl font-bold text-sm hover:bg-rose-500 shadow-sm">確定</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     let appData = {
       config: { className: "我們的班級小宇宙", semester: "114學年度上學期", currencyName: "💰元" },
@@ -311,6 +324,29 @@
 
     function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
     function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+
+    // 自訂漂亮的 Confirm 對話框取代原生難看的網址提示
+    function showCustomConfirm(message, onConfirm) {
+      document.getElementById('custom-confirm-text').innerText = message;
+      openModal('modal-custom-confirm');
+
+      const okBtn = document.getElementById('custom-confirm-ok-btn');
+      const cancelBtn = document.getElementById('custom-confirm-cancel-btn');
+
+      // 移除舊的事件避免重複綁定
+      const newOkBtn = okBtn.cloneNode(true);
+      const newCancelBtn = cancelBtn.cloneNode(true);
+      okBtn.parentNode.replaceChild(newOkBtn, okBtn);
+      cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
+
+      newOkBtn.onclick = function() {
+        closeModal('modal-custom-confirm');
+        onConfirm();
+      };
+      newCancelBtn.onclick = function() {
+        closeModal('modal-custom-confirm');
+      };
+    }
 
     function getTodayString() {
       const now = new Date();
@@ -350,11 +386,11 @@
     }
 
     function clearLocalCache() {
-      if (confirm("確定要清除本機暫存嗎？")) {
+      showCustomConfirm("確定要清除本機暫存嗎？", function() {
         localStorage.removeItem('class_space_data');
         localStorage.removeItem('firebase_config_raw');
         location.reload();
-      }
+      });
     }
 
     function switchTab(tab) {
@@ -452,7 +488,7 @@
 
       const record = st.history[idx];
 
-      if (confirm(`確定要刪除這筆紀錄嗎？\n[${record.reason}] (${record.amount >= 0 ? '+' : ''}${record.amount})\n系統將會自動扣回/補回該筆金額。`)) {
+      showCustomConfirm(`確定要刪除這筆紀錄嗎？\n[${record.reason}] (${record.amount >= 0 ? '+' : ''}${record.amount})\n系統將會自動扣回/補回該筆金額。`, function() {
         st.balance -= record.amount;
 
         if (record.hwId && record.date) {
@@ -472,7 +508,7 @@
         if (document.getElementById('asec-check') && !document.getElementById('asec-check').classList.contains('hidden')) {
           renderCheckList();
         }
-      }
+      });
     }
 
     function renderUI() {
@@ -801,10 +837,10 @@
     }
 
     function deleteHomework(hwId) {
-      if (confirm('確定要刪除這項作業規則嗎？')) {
+      showCustomConfirm('確定要刪除這項作業規則嗎？', function() {
         appData.homeworks = appData.homeworks.filter(h => h.id !== hwId);
         syncData();
-      }
+      });
     }
 
     function addQuickButton() {
@@ -852,10 +888,10 @@
     }
 
     function deleteQuickButton(qbId) {
-      if (confirm('確定要刪除這個項目嗎？')) {
+      showCustomConfirm('確定要刪除這個項目嗎？', function() {
         appData.quickButtons = appData.quickButtons.filter(q => q.id !== qbId);
         syncData();
-      }
+      });
     }
 
     function openEditStudentModal(stId) {
@@ -876,17 +912,17 @@
 
     function deleteStudent(stId) {
       const st = appData.students[stId];
-      if (confirm(`確定要刪除 ${st.seat}號 ${st.name} 嗎？`)) {
+      showCustomConfirm(`確定要刪除 ${st.seat}號 ${st.name} 嗎？`, function() {
         delete appData.students[stId];
         syncData();
-      }
+      });
     }
 
     function confirmClearAllStudents() {
-      if (confirm("⚠️ 確定要清空全班學生資料嗎？此動作無法撤銷！")) {
+      showCustomConfirm("⚠️ 確定要清空全班學生資料嗎？此動作無法撤銷！", function() {
         appData.students = {};
         syncData();
-      }
+      });
     }
 
     function openAdjustModal(stId) {
