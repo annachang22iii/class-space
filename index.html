@@ -135,10 +135,11 @@
         <h3 class="font-bold text-gray-700">➕ 新增作業項目</h3>
         <div class="space-y-2">
           <input type="text" id="new-hw-title" placeholder="作業名稱 (例：國語習作第1課)" class="w-full p-2 border rounded-lg text-sm">
-          <input type="number" id="new-hw-reward" placeholder="獎勵金額" class="w-full p-2 border rounded-lg text-sm" value="30">
+          <input type="text" id="new-hw-reward" placeholder="獎勵金額 (例如 30)" class="w-full p-2 border rounded-lg text-sm" value="30">
           <button onclick="addHomework()" class="w-full py-2 bg-emerald-600 text-white font-bold rounded-lg text-sm hover:bg-emerald-700">+ 新增作業規則</button>
         </div>
         <hr class="my-4">
+        <h4 class="font-bold text-gray-700 text-sm">現有作業列表：</h4>
         <ul id="hw-rule-list" class="space-y-2 text-sm"></ul>
       </div>
 
@@ -208,10 +209,10 @@
 
   <script>
     let appData = {
-      config: { className: "班級小宇宙", semester: "114學年度上學期", currencyName: "💰元" },
+      config: { className: "我們的班級小宇宙", semester: "114學年度上學期", currencyName: "💰元" },
       students: {},
       homeworks: [
-        { id: 'hw_1', title: '國語習作第1課', reward: 30, version: '預設' }
+        { id: 'hw_1', title: '預設國語作業', reward: 30 }
       ],
       quickButtons: [
         { id: 'q1', name: '🌟 今日表揚', amount: 50 },
@@ -283,11 +284,19 @@
         adminStSelect.innerHTML += opt;
       });
 
-      // 3. 作業選單
+      // 3. 作業選單與作業規則清單
       const hwSelect = document.getElementById('submit-hw-select');
+      const hwRuleList = document.getElementById('hw-rule-list');
       hwSelect.innerHTML = '';
+      hwRuleList.innerHTML = '';
+      
       appData.homeworks.forEach(h => {
         hwSelect.innerHTML += `<option value="${h.id}">${h.title} ( +${h.reward} ${appData.config.currencyName} )</option>`;
+        hwRuleList.innerHTML += `
+          <li class="p-3 bg-gray-50 border rounded-xl flex justify-between items-center">
+            <span class="font-bold text-gray-700">${h.title} <span class="text-emerald-600 text-xs">(+${h.reward} ${appData.config.currencyName})</span></span>
+            <button onclick="deleteHomework('${h.id}')" class="text-xs bg-red-100 text-red-600 px-2 py-1 rounded hover:bg-red-200">🗑️ 刪除</button>
+          </li>`;
       });
 
       // 4. 後台學生列表
@@ -322,6 +331,35 @@
             ${q.name} (+${q.amount})
           </button>`;
       });
+    }
+
+    // --- 新增 / 刪除 作業項目 ---
+    function addHomework() {
+      const title = document.getElementById('new-hw-title').value.trim();
+      let rawReward = document.getElementById('new-hw-reward').value.trim();
+      
+      // 自動清掉多餘的 '+' 號
+      rawReward = rawReward.replace('+', '');
+      const reward = parseInt(rawReward);
+
+      if (!title) return alert('⚠️ 請輸入作業名稱！');
+      if (isNaN(reward)) return alert('⚠️ 請輸入有效的獎勵數字！');
+
+      const id = 'hw_' + Date.now();
+      appData.homeworks.push({ id, title, reward });
+      
+      document.getElementById('new-hw-title').value = '';
+      document.getElementById('new-hw-reward').value = '30';
+      
+      syncData();
+      alert(`🎉 成功新增作業項目：「${title}」！`);
+    }
+
+    function deleteHomework(hwId) {
+      if (confirm('確定要刪除這項作業規則嗎？')) {
+        appData.homeworks = appData.homeworks.filter(h => h.id !== hwId);
+        syncData();
+      }
     }
 
     // --- 學生編輯與刪除 ---
@@ -367,7 +405,7 @@
       syncData();
     }
 
-    // --- 全新更強大的批次解析邏輯 ---
+    // --- 批次解析邏輯 ---
     function processBatchInput() {
       const rawText = document.getElementById('batch-excel-input').value.trim();
       if (!rawText) return alert('⚠️ 輸入框是空的，請先貼上內容！');
@@ -376,7 +414,6 @@
       const lines = rawText.split('\n');
 
       lines.forEach(line => {
-        // 使用正則表達式抓取這行裡面的「第一個數字」與「數字後面的第一個非空白文字」
         const match = line.match(/(\d+)\s*[\t,,\s]+\s*([^\s\t,]+)/);
         if (match) {
           const seat = parseInt(match[1]);
