@@ -100,7 +100,7 @@
         </div>
       </div>
 
-      <!-- 新增子分頁 1.5: 作業繳交點收簿 (教師手動點收) -->
+      <!-- 子分頁 1.5: 作業繳交點收簿 (教師手動點收) -->
       <div id="asec-check" class="hidden space-y-4">
         <div class="bg-slate-50 p-4 rounded-2xl border flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
@@ -441,6 +441,7 @@
       checkHwSelect.innerHTML = '';
       hwRuleList.innerHTML = '';
       
+      if (!appData.homeworks) appData.homeworks = [];
       appData.homeworks.forEach(h => {
         const opt = `<option value="${h.id}">${h.title} ( +${h.reward} ${appData.config.currencyName} )</option>`;
         hwSelect.innerHTML += opt;
@@ -599,14 +600,19 @@
       renderCheckList();
     }
 
-    // --- 新增 / 刪除 作業項目 ---
+    // --- 新增 / 刪除 作業項目 (強化數值解析) ---
     function addHomework() {
       const title = document.getElementById('new-hw-title').value.trim();
-      let rawReward = document.getElementById('new-hw-reward').value.trim().replace('+', '');
+      let rawReward = document.getElementById('new-hw-reward').value.trim();
+      
+      // 自動去除加號 + 與空格
+      rawReward = rawReward.replace(/\+/g, '').trim();
       const reward = parseInt(rawReward);
 
       if (!title) return alert('⚠️ 請輸入作業名稱！');
       if (isNaN(reward)) return alert('⚠️ 請輸入有效的獎勵數字！');
+
+      if (!appData.homeworks) appData.homeworks = [];
 
       const id = 'hw_' + Date.now();
       appData.homeworks.push({ id, title, reward });
@@ -628,7 +634,9 @@
     // --- 新增 / 編輯 / 刪除 快捷獎勵項目 ---
     function addQuickButton() {
       const name = document.getElementById('new-qb-name').value.trim();
-      let rawAmount = document.getElementById('new-qb-amount').value.trim().replace('+', '');
+      let rawAmount = document.getElementById('new-qb-amount').value.trim();
+      
+      rawAmount = rawAmount.replace(/\+/g, '').trim();
       const amount = parseInt(rawAmount);
 
       if (!name) return alert('⚠️ 請輸入獎勵項目名稱！');
@@ -657,7 +665,8 @@
     function saveQuickButtonEdit() {
       const id = document.getElementById('edit-qb-id').value;
       const name = document.getElementById('edit-qb-name-input').value.trim();
-      const amount = parseInt(document.getElementById('edit-qb-amount-input').value);
+      let rawAmount = document.getElementById('edit-qb-amount-input').value.toString().replace(/\+/g, '').trim();
+      const amount = parseInt(rawAmount);
 
       if (!name || isNaN(amount)) return alert('請輸入有效的項目名稱與金額！');
 
