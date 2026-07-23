@@ -379,7 +379,7 @@
       if (atab === 'check') renderCheckList();
     }
 
-    // 開啟學生明細視窗 (isEditable: true 代表從後台開啟，具備刪除權限；false 代表前台學生檢視，純檢視)
+    // 開啟學生明細視窗 (isEditable: true 代表從後台開啟，具備刪除權限)
     function openStudentHistoryModal(stId, isEditable = false) {
       activeHistoryStudentId = stId;
       ensureStudentsObject();
@@ -408,25 +408,34 @@
           const sign = isPositive ? '+' : '';
           const dateTag = item.date ? `<span class="bg-white/60 px-1.5 py-0.5 rounded text-[10px] text-stone-500 mr-1 font-mono">${item.date}</span>` : '';
 
-          let deleteBtnHtml = '';
+          const rowDiv = document.createElement('div');
+          rowDiv.className = `p-3 rounded-2xl border-2 flex justify-between items-center ${colorClass}`;
+          
+          const leftDiv = document.createElement('div');
+          leftDiv.innerHTML = `
+            <div class="flex items-center gap-1 mb-0.5">
+              ${dateTag}
+              <span class="font-bold text-stone-700 text-sm">${item.reason}</span>
+            </div>
+            <div class="text-xs text-stone-400 font-medium">${item.time}</div>`;
+          
+          const rightDiv = document.createElement('div');
+          rightDiv.className = 'flex items-center gap-3';
+          rightDiv.innerHTML = `<div class="font-extrabold text-base">${sign}${item.amount} ${appData.config.currencyName}</div>`;
+
           if (isEditable) {
-            deleteBtnHtml = `<button onclick="deleteStudentHistoryRecord('${stId}', '${item.id}')" class="text-xs bg-rose-200 hover:bg-rose-300 text-rose-700 px-2.5 py-1 rounded-lg font-bold shadow-sm cursor-pointer">🗑️ 刪除</button>`;
+            const delBtn = document.createElement('button');
+            delBtn.className = 'text-xs bg-rose-200 hover:bg-rose-300 text-rose-700 px-2.5 py-1 rounded-lg font-bold shadow-sm cursor-pointer';
+            delBtn.innerText = '🗑️ 刪除';
+            delBtn.onclick = function() {
+              deleteStudentHistoryRecord(stId, item.id);
+            };
+            rightDiv.appendChild(delBtn);
           }
 
-          container.innerHTML += `
-            <div class="p-3 rounded-2xl border-2 flex justify-between items-center ${colorClass}">
-              <div>
-                <div class="flex items-center gap-1 mb-0.5">
-                  ${dateTag}
-                  <span class="font-bold text-stone-700 text-sm">${item.reason}</span>
-                </div>
-                <div class="text-xs text-stone-400 font-medium">${item.time}</div>
-              </div>
-              <div class="flex items-center gap-3">
-                <div class="font-extrabold text-base">${sign}${item.amount} ${appData.config.currencyName}</div>
-                ${deleteBtnHtml}
-              </div>
-            </div>`;
+          rowDiv.appendChild(leftDiv);
+          rowDiv.appendChild(rightDiv);
+          container.appendChild(rowDiv);
         });
       }
       openModal('modal-student-history');
@@ -615,7 +624,7 @@
         const cleanedLine = line.trim();
         if (!cleanedLine) return;
 
-        const parts = cleanedLine.split(/[\t,，\s]+/);
+        const parts = cleanedLine.split(/[\t,,\s]+/);
         if (parts.length >= 2) {
           const seat = parseInt(parts[0]);
           const name = parts[1].trim();
