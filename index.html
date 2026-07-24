@@ -110,8 +110,8 @@
       <div class="flex border-b border-stone-100 mb-6 overflow-x-auto gap-2">
         <button onclick="switchAdminTab('quick')" id="atab-quick" class="px-4 py-2 font-bold text-stone-400 whitespace-nowrap">📝 課堂快速表揚</button>
         <button onclick="switchAdminTab('check')" id="atab-check" class="px-4 py-2 font-bold text-stone-400 whitespace-nowrap">📑 作業繳交點收簿</button>
-        <button onclick="switchAdminTab('students')" id="atab-students" class="px-4 py-2 font-bold text-stone-400 whitespace-nowrap">👥 學生與明細管理</button>
-        <button onclick="switchAdminTab('hw')" id="atab-hw" class="px-4 py-2 font-bold tab-active whitespace-nowrap">📋 作業與規則管理</button>
+        <button onclick="switchAdminTab('students')" id="atab-students" class="px-4 py-2 font-bold tab-active whitespace-nowrap">👥 學生與明細管理</button>
+        <button onclick="switchAdminTab('hw')" id="atab-hw" class="px-4 py-2 font-bold text-stone-400 whitespace-nowrap">📋 作業與規則管理</button>
         <button onclick="switchAdminTab('settings')" id="atab-settings" class="px-4 py-2 font-bold text-stone-400 whitespace-nowrap">⚙️ 班級設定</button>
       </div>
 
@@ -154,7 +154,7 @@
       </div>
 
       <!-- 子分頁 2: 學生管理 -->
-      <div id="asec-students" class="hidden space-y-6">
+      <div id="asec-students" class="space-y-6">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div class="bg-stone-50 p-4 rounded-2xl border-2 border-stone-200 space-y-3">
             <h4 class="font-bold text-sm text-stone-700">➕ 新增單一學生</h4>
@@ -186,7 +186,7 @@
       </div>
 
       <!-- 子分頁 3: 作業與規則管理 -->
-      <div id="asec-hw" class="space-y-6">
+      <div id="asec-hw" class="hidden space-y-6">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div class="bg-stone-50 p-5 rounded-2xl border-2 border-stone-200 space-y-4">
             <h3 class="font-bold text-teal-600 flex items-center gap-1">📚 作業繳交項目與代表條碼</h3>
@@ -338,7 +338,6 @@
     let db = null;
     let activeHistoryStudentId = null;
 
-    // 當前條碼繳交階段的暂存狀態
     let currentSessionStudentId = null;
     let currentSessionHwIds = [];
 
@@ -608,7 +607,6 @@
       const checkDateInput = document.getElementById('check-date-input');
       if (checkDateInput && !checkDateInput.value) checkDateInput.value = today;
 
-      // 綁定條碼繳交頁面的掃描事件
       const studentInput = document.getElementById('barcode-student-field');
       if (studentInput) {
         studentInput.onkeydown = function(e) {
@@ -634,14 +632,12 @@
       updateSessionDisplay();
     }
 
-    // 處理步驟 1：掃描學生身分條碼
     function processStudentBarcode(val) {
       if (!val) return;
       ensureStudentsObject();
       let targetStId = null;
       const seatNum = parseInt(val);
 
-      // 支援直接輸入座號數字，或是包含前綴的格式
       for (const [id, st] of Object.entries(appData.students)) {
         if (st.seat === seatNum || id === val || String(st.seat) === val) {
           targetStId = id;
@@ -658,11 +654,9 @@
       currentSessionStudentId = targetStId;
       updateSessionDisplay();
       document.getElementById('barcode-student-field').value = '';
-      // 自動將焦點移至作業條碼輸入框
       document.getElementById('barcode-hw-field').focus();
     }
 
-    // 處理步驟 2：連續掃描作業條碼
     function processHwBarcode(val) {
       if (!val) return;
       if (!currentSessionStudentId) {
@@ -729,7 +723,6 @@
       document.getElementById('barcode-student-field').focus();
     }
 
-    // 點擊「完成作業繳交」按鈕
     function completeBatchSubmission() {
       if (!currentSessionStudentId) {
         showAlert("❌ 尚未掃描學生身分，無法完成繳交！");
@@ -1109,17 +1102,18 @@
     }
 
     function addNewStudent() {
-      const seat = document.getElementById('new-st-seat').value.trim();
+      const seatVal = document.getElementById('new-st-seat').value.trim();
       const name = document.getElementById('new-st-name').value.trim();
 
-      if (!seat || !name) {
+      if (!seatVal || !name) {
         showAlert("請輸入完整的座號與姓名！");
         return;
       }
 
+      const seat = parseInt(seatVal);
       ensureStudentsObject();
       const newId = 'st_' + Date.now() + '_' + Math.floor(Math.random()*1000);
-      appData.students[newId] = { seat: Number(seat), name: name, balance: 0, history: [] };
+      appData.students[newId] = { seat: seat, name: name, balance: 0, history: [] };
 
       document.getElementById('new-st-seat').value = '';
       document.getElementById('new-st-name').value = '';
@@ -1187,6 +1181,7 @@
       });
     }
 
+    // [已升級] 支援更穩定的批次文字解析 (相容各種空白與 Tab)
     function processBatchInput() {
       const raw = document.getElementById('batch-excel-input').value.trim();
       if (!raw) {
@@ -1198,7 +1193,11 @@
       let count = 0;
 
       lines.forEach(line => {
-        const parts = line.trim().split(/\s+/);
+        const trimmedLine = line.trim();
+        if (!trimmedLine) return;
+        
+        // 智慧解析：透過任何空格、Tab 或全形空白切分
+        const parts = trimmedLine.split(/[\s\t ]+/);
         if (parts.length >= 2) {
           const seat = parseInt(parts[0]);
           const name = parts[1];
@@ -1209,6 +1208,11 @@
           }
         }
       });
+
+      if (count === 0) {
+        showAlert("❌ 格式無法識別！請確保每行格式為：「座號 姓名」(中間以空格隔開)。");
+        return;
+      }
 
       document.getElementById('batch-excel-input').value = '';
       saveDataToStorage();
