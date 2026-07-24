@@ -49,19 +49,44 @@
 
   <!-- 區塊 1: 條碼繳交 (前台) -->
   <main id="sec-submit" class="space-y-6">
-    <div class="bubble-card p-6 max-w-xl mx-auto text-center space-y-4 cute-shadow">
-      <h2 class="text-xl font-bold text-stone-700">📚 學生作業快速繳交</h2>
-      <div class="space-y-2 text-left">
-        <label class="block text-xs font-bold text-stone-400">選擇作業項目：</label>
-        <select id="submit-hw-select" class="w-full p-3 border-2 border-stone-200 rounded-2xl bg-stone-50 text-base font-bold text-teal-600 focus:outline-none focus:border-teal-400"></select>
+    <div class="bubble-card p-6 max-w-xl mx-auto space-y-5 cute-shadow bg-white">
+      <div class="text-center">
+        <h2 class="text-xl font-bold text-stone-700">📚 學生作業條碼快速繳交</h2>
+        <p class="text-xs text-stone-400 mt-1">請依照步驟依序刷入「個人身分條碼」與「作業代表條碼」</p>
       </div>
-      <div class="space-y-2 text-left">
-        <label class="block text-xs font-bold text-stone-400">感應條碼掃描或輸入座號 (支援條碼槍/QR)：</label>
+
+      <!-- 步驟 1：學生身分條碼掃描 -->
+      <div class="p-4 rounded-2xl bg-teal-50 border-2 border-teal-200 space-y-2">
+        <label class="block text-xs font-extrabold text-teal-800">步驟 1：請掃描【個人身分條碼】(或輸入座號)：</label>
         <div class="flex gap-2">
-          <input type="text" id="barcode-input-field" placeholder="請在此刷條碼或輸入座號後按 Enter..." class="w-full p-3 border-2 border-teal-300 rounded-2xl bg-teal-50 text-base font-bold text-stone-700 focus:outline-none focus:border-teal-500">
+          <input type="text" id="barcode-student-field" placeholder="在此刷個人身分條碼..." class="w-full p-3 border-2 border-teal-300 rounded-xl bg-white text-base font-bold text-stone-700 focus:outline-none focus:border-teal-500">
+          <button onclick="clearCurrentSession()" class="px-3 bg-white border-2 border-stone-200 text-stone-500 rounded-xl text-xs font-bold hover:bg-stone-100">重設</button>
+        </div>
+        <!-- 顯示目前已識別的學生資訊 -->
+        <div id="scanned-student-info" class="text-xs font-bold text-teal-700 pt-1">
+          👤 目前識別學生：<span class="text-rose-500">尚未刷入</span>
         </div>
       </div>
-      <p class="text-xs text-stone-400">💡 提示：條碼槍或掃描器刷入學生座號後會自動完成繳交，不需點擊按鈕。</p>
+
+      <!-- 步驟 2：作業條碼掃描 -->
+      <div class="p-4 rounded-2xl bg-amber-50 border-2 border-amber-200 space-y-2">
+        <label class="block text-xs font-extrabold text-amber-800">步驟 2：請連續掃描【作業代表條碼】(可多項)：</label>
+        <div class="flex gap-2">
+          <input type="text" id="barcode-hw-field" placeholder="在此連續刷作業條碼..." class="w-full p-3 border-2 border-amber-300 rounded-xl bg-white text-base font-bold text-stone-700 focus:outline-none focus:border-amber-500">
+        </div>
+        <!-- 已加入清單的作業預覽 -->
+        <div class="pt-2">
+          <div class="text-xs font-bold text-stone-500 mb-1">本次準備繳交的作業清單：</div>
+          <div id="session-hw-list" class="flex flex-wrap gap-1.5 min-h-[40px] p-2 bg-white rounded-xl border-2 border-amber-100">
+            <span class="text-xs text-stone-300 self-center">尚未加入任何作業</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 完成按鈕 -->
+      <button onclick="completeBatchSubmission()" class="w-full py-3.5 bg-rose-400 text-white font-extrabold rounded-2xl text-base hover:bg-rose-500 shadow-md transition">
+        ✨ 完成作業繳交並送出
+      </button>
     </div>
   </main>
 
@@ -121,19 +146,16 @@
           </div>
         </div>
 
-        <!-- 全班今日未交名單摘要列 -->
         <div id="unsubmitted-summary-box" class="bg-rose-50 border-2 border-rose-200 p-4 rounded-2xl text-xs text-rose-800 font-bold">
           📌 今日未交名單載入中...
         </div>
 
-        <!-- 學生作業繳交與訂正狀態網格 -->
         <div id="check-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3"></div>
       </div>
 
       <!-- 子分頁 2: 學生管理 -->
       <div id="asec-students" class="hidden space-y-6">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <!-- 單一新增 -->
           <div class="bg-stone-50 p-4 rounded-2xl border-2 border-stone-200 space-y-3">
             <h4 class="font-bold text-sm text-stone-700">➕ 新增單一學生</h4>
             <div class="flex gap-2">
@@ -143,7 +165,6 @@
             </div>
           </div>
 
-          <!-- Excel 匯入 -->
           <div class="bg-teal-50 p-4 rounded-2xl border-2 border-teal-100 space-y-3">
             <h4 class="font-bold text-sm text-teal-700">📊 Excel 學生名單批次匯入</h4>
             <p class="text-xs text-stone-400">直接貼上 Excel 複製的內容（座號 姓名）：</p>
@@ -168,7 +189,8 @@
       <div id="asec-hw" class="space-y-6">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div class="bg-stone-50 p-5 rounded-2xl border-2 border-stone-200 space-y-4">
-            <h3 class="font-bold text-teal-600 flex items-center gap-1">📚 作業繳交項目管理</h3>
+            <h3 class="font-bold text-teal-600 flex items-center gap-1">📚 作業繳交項目與代表條碼</h3>
+            <p class="text-xs text-stone-400">提示：系統會自動為每項作業產生專屬條碼代號（例如 hw_1），您也可以直接使用作業代號來讓條碼槍掃描。</p>
             <div class="space-y-2">
               <input type="text" id="new-hw-title" placeholder="作業名稱 (例如：國語習作L1)" class="w-full p-3 border-2 border-stone-200 rounded-xl text-sm bg-white font-bold">
               <div>
@@ -179,13 +201,13 @@
               <button onclick="addHomework()" class="w-full py-3 bg-teal-400 text-white font-bold rounded-xl text-sm hover:bg-teal-500 shadow-sm">+ 新增作業規則</button>
             </div>
             <hr class="border-stone-200">
-            <h4 class="font-bold text-stone-500 text-xs">現有作業列表：</h4>
+            <h4 class="font-bold text-stone-500 text-xs">現有作業列表與代表條碼：</h4>
             <ul id="hw-rule-list" class="space-y-2 text-sm max-h-60 overflow-y-auto"></ul>
           </div>
 
           <div class="bg-amber-50 p-5 rounded-2xl border-2 border-amber-200 space-y-4">
             <h3 class="font-bold text-amber-600 flex items-center gap-1">🎁 課堂快速表揚與扣分項目</h3>
-            <p class="text-xs text-stone-400">提示：金額輸入正數為加分，輸入負數（例如 <code class="bg-amber-100 px-1 rounded">-20</code>）即為扣分項目！</p>
+            <p class="text-xs text-stone-400">提示：金額輸入正數為加分，輸入負數即為扣分項目！</p>
             <div class="space-y-2">
               <input type="text" id="new-qb-name" placeholder="項目名稱 (例如：遲到、掃地認真)" class="w-full p-3 border-2 border-amber-200 rounded-xl text-sm bg-white font-bold">
               <input type="text" id="new-qb-amount" placeholder="金額 (加分填 20，扣分填 -20)" class="w-full p-3 border-2 border-amber-200 rounded-xl text-sm bg-white font-bold" value="20">
@@ -225,7 +247,6 @@
         <button onclick="closeModal('modal-student-history')" class="text-stone-300 hover:text-stone-500 font-bold text-xl">&times;</button>
       </div>
 
-      <!-- 頁籤切換：資產明細 vs 作業繳交狀態 -->
       <div class="flex gap-2 border-b pb-2">
         <button onclick="switchStudentModalTab('history')" id="st-tab-history" class="px-3 py-1.5 rounded-xl font-bold text-xs bg-rose-400 text-white">💰 財富與加分明細</button>
         <button onclick="switchStudentModalTab('homework')" id="st-tab-homework" class="px-3 py-1.5 rounded-xl font-bold text-xs bg-stone-100 text-stone-600">📚 作業繳交與訂正狀態</button>
@@ -233,12 +254,10 @@
 
       <div id="history-tip-text"></div>
 
-      <!-- 內容區 1：資產明細 -->
       <div id="st-content-history" class="overflow-y-auto flex-1 space-y-2 pr-1">
         <div id="history-list-container" class="space-y-2"></div>
       </div>
 
-      <!-- 內容區 2：作業繳交與訂正狀態 -->
       <div id="st-content-homework" class="overflow-y-auto flex-1 space-y-2 pr-1 hidden"></div>
 
       <div class="pt-2 border-t text-right">
@@ -259,46 +278,6 @@
       <div class="flex justify-end gap-2">
         <button onclick="closeModal('modal-edit-student')" class="px-4 py-2 bg-stone-100 text-stone-600 rounded-xl font-bold text-xs">取消</button>
         <button onclick="saveStudentName()" class="px-4 py-2 bg-rose-400 text-white rounded-xl font-bold text-xs hover:bg-rose-500">儲存變更</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- 彈跳視窗 2: 手動加減分 -->
-  <div id="modal-adjust" class="fixed inset-0 bg-stone-900/40 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
-    <div class="bubble-card p-6 max-w-md w-full space-y-4 shadow-xl bg-white">
-      <h3 id="adjust-modal-title" class="text-lg font-bold text-stone-700">手動調整資產</h3>
-      <input type="hidden" id="adjust-student-id">
-      <div>
-        <label class="block text-sm text-stone-400 font-bold mb-1">變動金額 (正數加分，負數扣分)：</label>
-        <input type="number" id="adjust-amount" class="w-full p-3 border-2 border-stone-200 rounded-xl font-bold text-lg" placeholder="例如: 20 或 -10">
-      </div>
-      <div>
-        <label class="block text-sm text-stone-400 font-bold mb-1">事由說明：</label>
-        <input type="text" id="adjust-reason" class="w-full p-3 border-2 border-stone-200 rounded-xl text-sm font-bold" placeholder="例如：老師手動補發、修正金額">
-      </div>
-      <div class="flex justify-end gap-2">
-        <button onclick="closeModal('modal-adjust')" class="px-4 py-2 bg-stone-100 text-stone-600 rounded-xl font-bold text-xs">取消</button>
-        <button onclick="submitStudentAdjust()" class="px-4 py-2 bg-rose-400 text-white rounded-xl font-bold text-xs hover:bg-rose-500">確認儲存</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- 彈跳視窗 3: 編輯快捷獎勵項目 -->
-  <div id="modal-edit-qb" class="fixed inset-0 bg-stone-900/40 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
-    <div class="bubble-card p-6 max-w-sm w-full space-y-4 shadow-xl bg-white">
-      <h3 class="text-lg font-bold text-stone-700">✏️ 編輯獎勵/扣分項目</h3>
-      <input type="hidden" id="edit-qb-id">
-      <div>
-        <label class="block text-xs text-stone-400 font-bold mb-1">項目名稱：</label>
-        <input type="text" id="edit-qb-name-input" class="w-full p-3 border-2 border-stone-200 rounded-xl font-bold text-sm">
-      </div>
-      <div>
-        <label class="block text-xs text-stone-400 font-bold mb-1">金額 (加分填正數，扣分填負數)：</label>
-        <input type="number" id="edit-qb-amount-input" class="w-full p-3 border-2 border-stone-200 rounded-xl font-bold text-sm">
-      </div>
-      <div class="flex justify-end gap-2">
-        <button onclick="closeModal('modal-edit-qb')" class="px-4 py-2 bg-stone-100 text-stone-600 rounded-xl font-bold text-xs">取消</button>
-        <button onclick="saveQuickButtonEdit()" class="px-4 py-2 bg-amber-400 text-white rounded-xl font-bold text-xs hover:bg-amber-500">儲存變更</button>
       </div>
     </div>
   </div>
@@ -358,6 +337,10 @@
 
     let db = null;
     let activeHistoryStudentId = null;
+
+    // 當前條碼繳交階段的暂存狀態
+    let currentSessionStudentId = null;
+    let currentSessionHwIds = [];
 
     function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
     function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
@@ -447,7 +430,7 @@
       document.getElementById('sec-' + tab).classList.remove('hidden');
       if (tab === 'submit') {
         setTimeout(() => {
-          const input = document.getElementById('barcode-input-field');
+          const input = document.getElementById('barcode-student-field');
           if (input) input.focus();
         }, 100);
       } else if (tab === 'view') {
@@ -615,87 +598,179 @@
       });
     }
 
-    // 初始化下拉選單與畫面
     function initUI() {
       document.getElementById('header-class-name').innerText = appData.config.className;
       document.getElementById('currency-tag').innerText = `貨幣：${appData.config.currencyName}`;
       document.getElementById('cfg-class-name').value = appData.config.className;
       document.getElementById('cfg-currency-name').value = appData.config.currencyName;
 
-      // 填充前台作業選擇選單
-      const submitSelect = document.getElementById('submit-hw-select');
-      submitSelect.innerHTML = '';
-      appData.homeworks.forEach(hw => {
-        submitSelect.innerHTML += `<option value="${hw.id}">${hw.title} (獎勵 ${hw.reward} ${appData.config.currencyName})</option>`;
-      });
-
-      // 設定預設日期
       const today = getTodayString();
       const checkDateInput = document.getElementById('check-date-input');
       if (checkDateInput && !checkDateInput.value) checkDateInput.value = today;
 
-      // 綁定條碼槍輸入事件
-      const barcodeInput = document.getElementById('barcode-input-field');
-      if (barcodeInput) {
-        barcodeInput.onkeydown = function(e) {
+      // 綁定條碼繳交頁面的掃描事件
+      const studentInput = document.getElementById('barcode-student-field');
+      if (studentInput) {
+        studentInput.onkeydown = function(e) {
           if (e.key === 'Enter') {
-            processBarcodeSubmit(this.value.trim());
+            processStudentBarcode(this.value.trim());
+          }
+        };
+      }
+
+      const hwInput = document.getElementById('barcode-hw-field');
+      if (hwInput) {
+        hwInput.onkeydown = function(e) {
+          if (e.key === 'Enter') {
+            processHwBarcode(this.value.trim());
             this.value = '';
           }
         };
       }
+
       renderStudentCardsGrid();
       renderHwRuleList();
       renderQuickButtonRules();
+      updateSessionDisplay();
     }
 
-    function processBarcodeSubmit(seatStr) {
-      const seatNum = parseInt(seatStr);
-      if (isNaN(seatNum)) {
-        showAlert("❌ 無效的座號條碼格式，請重新刷卡或輸入。");
-        return;
-      }
+    // 處理步驟 1：掃描學生身分條碼
+    function processStudentBarcode(val) {
+      if (!val) return;
       ensureStudentsObject();
       let targetStId = null;
+      const seatNum = parseInt(val);
+
+      // 支援直接輸入座號數字，或是包含前綴的格式
       for (const [id, st] of Object.entries(appData.students)) {
-        if (parseInt(st.seat) === seatNum) {
+        if (st.seat === seatNum || id === val || String(st.seat) === val) {
           targetStId = id;
           break;
         }
       }
 
       if (!targetStId) {
-        showAlert(`❌ 找不到座號為 [${seatNum}] 的學生，請確認名單是否已建立！`);
+        showAlert(`❌ 找不到代號或座號為 [${val}] 的學生，請確認名單！`);
+        document.getElementById('barcode-student-field').value = '';
         return;
       }
 
-      const hwSelect = document.getElementById('submit-hw-select');
-      const hwId = hwSelect.value;
-      const hwObj = appData.homeworks.find(h => h.id === hwId);
+      currentSessionStudentId = targetStId;
+      updateSessionDisplay();
+      document.getElementById('barcode-student-field').value = '';
+      // 自動將焦點移至作業條碼輸入框
+      document.getElementById('barcode-hw-field').focus();
+    }
+
+    // 處理步驟 2：連續掃描作業條碼
+    function processHwBarcode(val) {
+      if (!val) return;
+      if (!currentSessionStudentId) {
+        showAlert("⚠️ 請先完成【步驟 1】掃描學生身分條碼！");
+        document.getElementById('barcode-student-field').focus();
+        return;
+      }
+
+      const hwObj = appData.homeworks.find(h => h.id === val || h.title === val);
       if (!hwObj) {
-        showAlert("❌ 請先選擇一項有效的作業項目！");
+        showAlert(`❌ 找不到代號或名稱為 [${val}] 的作業項目！`);
         return;
       }
 
+      if (currentSessionHwIds.includes(hwObj.id)) {
+        showAlert(`⚠️ 作業「${hwObj.title}」已經在本次繳交清單中囉！`);
+        return;
+      }
+
+      currentSessionHwIds.push(hwObj.id);
+      updateSessionDisplay();
+    }
+
+    function updateSessionDisplay() {
+      ensureStudentsObject();
+      const infoBox = document.getElementById('scanned-student-info');
+      if (currentSessionStudentId && appData.students[currentSessionStudentId]) {
+        const st = appData.students[currentSessionStudentId];
+        infoBox.innerHTML = `👤 目前識別學生：<span class="text-teal-900 font-extrabold text-sm bg-teal-100 px-2 py-0.5 rounded">座號 ${st.seat} 號 - ${st.name}</span>`;
+      } else {
+        infoBox.innerHTML = `👤 目前識別學生：<span class="text-rose-500 font-bold">尚未刷入</span>`;
+      }
+
+      const listContainer = document.getElementById('session-hw-list');
+      listContainer.innerHTML = '';
+
+      if (currentSessionHwIds.length === 0) {
+        listContainer.innerHTML = `<span class="text-xs text-stone-300 self-center">尚未加入任何作業</span>`;
+      } else {
+        currentSessionHwIds.forEach(hwId => {
+          const hwObj = appData.homeworks.find(h => h.id === hwId);
+          if (hwObj) {
+            listContainer.innerHTML += `
+              <span class="inline-flex items-center gap-1 bg-amber-100 text-amber-800 px-2.5 py-1 rounded-xl text-xs font-bold">
+                📚 ${hwObj.title} (+${hwObj.reward})
+                <button onclick="removeSessionHw('${hwId}')" class="text-rose-500 hover:text-rose-700 font-bold ml-1">&times;</button>
+              </span>`;
+          }
+        });
+      }
+    }
+
+    function removeSessionHw(hwId) {
+      currentSessionHwIds = currentSessionHwIds.filter(id => id !== hwId);
+      updateSessionDisplay();
+    }
+
+    function clearCurrentSession() {
+      currentSessionStudentId = null;
+      currentSessionHwIds = [];
+      document.getElementById('barcode-student-field').value = '';
+      document.getElementById('barcode-hw-field').value = '';
+      updateSessionDisplay();
+      document.getElementById('barcode-student-field').focus();
+    }
+
+    // 點擊「完成作業繳交」按鈕
+    function completeBatchSubmission() {
+      if (!currentSessionStudentId) {
+        showAlert("❌ 尚未掃描學生身分，無法完成繳交！");
+        return;
+      }
+      if (currentSessionHwIds.length === 0) {
+        showAlert("❌ 尚未掃描任何作業項目，請至少掃描一項作業！");
+        return;
+      }
+
+      ensureStudentsObject();
+      const st = appData.students[currentSessionStudentId];
       const today = getTodayString();
-      if (!appData.hwRecords[today]) appData.hwRecords[today] = {};
-      if (!appData.hwRecords[today][hwId]) appData.hwRecords[today][hwId] = {};
+      let totalRewardAdded = 0;
+      let successHwTitles = [];
 
-      const currentRecord = appData.hwRecords[today][hwId][targetStId];
-      const isAlreadyDone = currentRecord && (currentRecord === 'done' || currentRecord.status === 'done');
+      currentSessionHwIds.forEach(hwId => {
+        const hwObj = appData.homeworks.find(h => h.id === hwId);
+        if (!hwObj) return;
 
-      if (isAlreadyDone) {
-        showAlert(`⚠️ ${appData.students[targetStId].name} (座號 ${seatNum}) 的「${hwObj.title}」今天已經完成繳交過囉！`);
-        return;
-      }
+        if (!appData.hwRecords[today]) appData.hwRecords[today] = {};
+        if (!appData.hwRecords[today][hwId]) appData.hwRecords[today][hwId] = {};
 
-      // 登記已繳交並發放獎勵
-      appData.hwRecords[today][hwId][targetStId] = { status: 'done', corrected: true };
-      appData.students[targetStId].balance = (appData.students[targetStId].balance || 0) + Number(hwObj.reward);
-      addStudentHistory(targetStId, `繳交作業：${hwObj.title}`, Number(hwObj.reward), hwId, today);
+        const currentRecord = appData.hwRecords[today][hwId][currentSessionStudentId];
+        const isAlreadyDone = currentRecord && (currentRecord === 'done' || currentRecord.status === 'done');
+
+        if (!isAlreadyDone) {
+          appData.hwRecords[today][hwId][currentSessionStudentId] = { status: 'done', corrected: true };
+          const reward = Number(hwObj.reward);
+          st.balance = (st.balance || 0) + reward;
+          totalRewardAdded += reward;
+          addStudentHistory(currentSessionStudentId, `繳交作業：${hwObj.title}`, reward, hwId, today);
+          successHwTitles.push(hwObj.title);
+        }
+      });
 
       saveDataToStorage();
-      showAlert(`🎉 成功登錄！\n學生：${appData.students[targetStId].name} (座號 ${seatNum})\n作業：${hwObj.title}\n獲得獎勵：+${hwObj.reward} ${appData.config.currencyName}`);
+
+      showAlert(`🎉 作業繳交成功！\n學生：${st.seat}號 ${st.name}\n完成作業：${successHwTitles.join('、')}\n共獲得獎勵：+${totalRewardAdded} ${appData.config.currencyName}`, function() {
+        clearCurrentSession();
+      });
     }
 
     function renderStudentCardsGrid() {
@@ -709,7 +784,6 @@
         return;
       }
 
-      // 依座號排序
       stEntries.sort((a, b) => Number(a[1].seat) - Number(b[1].seat));
 
       stEntries.forEach(([id, st]) => {
@@ -732,13 +806,13 @@
       list.innerHTML = '';
       if (checkSelect) checkSelect.innerHTML = '';
 
-      appData.homeworks.forEach((hw, idx) => {
+      appData.homeworks.forEach((hw) => {
         list.innerHTML += `
           <li class="flex justify-between items-center p-3 bg-white border-2 border-stone-100 rounded-xl">
             <div>
               <span class="font-bold text-stone-800">${hw.title}</span>
               <span class="text-xs text-teal-600 ml-2 font-bold">+${hw.reward} ${appData.config.currencyName}</span>
-              <div class="text-[11px] text-stone-400">指派日期：${hw.assignDate || '未設定'}</div>
+              <div class="text-[11px] text-stone-400">條碼代號：<code class="bg-stone-100 px-1 rounded text-stone-600">${hw.id}</code> | 指派：${hw.assignDate || '未設定'}</div>
             </div>
             <button onclick="deleteHomework('${hw.id}')" class="text-xs bg-rose-100 text-rose-600 px-2 py-1 rounded-lg font-bold hover:bg-rose-200">刪除</button>
           </li>`;
@@ -937,16 +1011,13 @@
       const hwObj = appData.homeworks.find(h => h.id === hwId);
       const reward = hwObj ? Number(hwObj.reward) : 30;
 
-      // 如果從未交變更為已交，發放獎勵
       if (oldStatus !== 'done' && statusVal === 'done') {
         appData.hwRecords[dateStr][hwId][stId] = { status: 'done', corrected: true };
         if (appData.students[stId]) {
           appData.students[stId].balance = (appData.students[stId].balance || 0) + reward;
           addStudentHistory(stId, `繳交作業：${hwObj ? hwObj.title : '作業'}`, reward, hwId, dateStr);
         }
-      } 
-      // 如果從已交變更為未交或需訂正，扣回獎勵
-      else if (oldStatus === 'done' && statusVal !== 'done') {
+      } else if (oldStatus === 'done' && statusVal !== 'done') {
         appData.hwRecords[dateStr][hwId][stId] = { status: statusVal, corrected: false };
         if (appData.students[stId]) {
           appData.students[stId].balance = (appData.students[stId].balance || 0) - reward;
@@ -1192,7 +1263,6 @@
       showAlert("✅ 班級設定已成功儲存！");
     }
 
-    // 資料儲存與同步邏輯
     function saveDataToStorage() {
       localStorage.setItem('class_space_data', JSON.stringify(appData));
       if (db) {
