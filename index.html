@@ -234,7 +234,9 @@
       <div id="history-tip-text"></div>
 
       <!-- 內容區 1：資產明細 -->
-      <div id="st-content-history" class="overflow-y-auto flex-1 space-y-2 pr-1"></div>
+      <div id="st-content-history" class="overflow-y-auto flex-1 space-y-2 pr-1">
+        <div id="history-list-container" class="space-y-2"></div>
+      </div>
 
       <!-- 內容區 2：作業繳交與訂正狀態 -->
       <div id="st-content-homework" class="overflow-y-auto flex-1 space-y-2 pr-1 hidden"></div>
@@ -314,7 +316,7 @@
     </div>
   </div>
 
-  <!-- 自訂美觀提示對話框 (單一按鈕，取代原生 alert) -->
+  <!-- 自訂美觀提示對話框 -->
   <div id="modal-custom-alert" class="fixed inset-0 bg-stone-900/40 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
     <div class="bubble-card p-6 max-w-sm w-full space-y-4 shadow-xl bg-white text-center">
       <div class="text-3xl">✨</div>
@@ -326,7 +328,7 @@
     </div>
   </div>
 
-  <!-- 自訂美觀確認對話框 (雙按鈕，取代原生 confirm) -->
+  <!-- 自訂美觀確認對話框 -->
   <div id="modal-custom-confirm" class="fixed inset-0 bg-stone-900/40 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
     <div class="bubble-card p-6 max-w-sm w-full space-y-4 shadow-xl bg-white text-center">
       <div class="text-3xl">💡</div>
@@ -351,7 +353,7 @@
         { id: 'q2', name: '掃地認真', amount: 20 },
         { id: 'q3', name: '遲到', amount: -20 }
       ],
-      hwRecords: {} // 結構: hwRecords[submitDate][hwId][stId] = { status: 'done'/'fix'/'none', corrected: true/false }
+      hwRecords: {}
     };
 
     let db = null;
@@ -448,6 +450,8 @@
           const input = document.getElementById('barcode-input-field');
           if (input) input.focus();
         }, 100);
+      } else if (tab === 'view') {
+        renderStudentCardsGrid();
       }
     }
 
@@ -460,6 +464,9 @@
       document.getElementById('atab-' + atab).className = "px-4 py-2 font-bold tab-active whitespace-nowrap";
       
       if (atab === 'check') renderCheckList();
+      if (atab === 'quick') renderAdminQuickSection();
+      if (atab === 'students') renderAdminStudentList();
+      if (atab === 'hw') renderHwRuleList();
     }
 
     function switchStudentModalTab(tabName) {
@@ -491,7 +498,6 @@
       document.getElementById('history-student-name').innerText = `${st.seat} 號 ${st.name} - 個人專區`;
       document.getElementById('history-student-balance').innerText = `目前總資產：${st.balance} ${appData.config.currencyName}`;
 
-      // 預設打開資產明細頁籤
       switchStudentModalTab('history');
 
       const tipContainer = document.getElementById('history-tip-text');
@@ -546,7 +552,6 @@
       openModal('modal-student-history');
     }
 
-    // 學生個人作業繳交與訂正狀態列表渲染
     function renderStudentHomeworkStatusModal(stId) {
       const container = document.getElementById('st-content-homework');
       container.innerHTML = '';
@@ -557,7 +562,6 @@
       }
 
       appData.homeworks.forEach(hw => {
-        // 尋找該學生對應這項作業在各個繳交日期的狀態
         let submissionStatus = '未繳交';
         let submitDateStr = '-';
         let isCorrected = false;
@@ -566,7 +570,6 @@
           for (const [dateKey, hwMap] of Object.entries(appData.hwRecords)) {
             if (hwMap[hw.id] && hwMap[hw.id][stId]) {
               const record = hwMap[hw.id][stId];
-              // 支援舊格式字串或新格式物件
               const stVal = typeof record === 'object' ? record.status : record;
               const correctedVal = typeof record === 'object' ? !!record.corrected : false;
 
@@ -602,218 +605,544 @@
           <div class="p-3.5 rounded-2xl border-2 ${badgeBg} flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
             <div>
               <div class="font-bold text-stone-800 text-sm">${hw.title}</div>
-              <div class="text-[11px] text-stone-500 font-medium">指派日期(佈達)：${hw.assignDate || '未設定'} | 實際繳交日：${submitDateStr}</div>
+              <div class="text-[11px] text-stone-500 font-medium">指派日期：${hw.assignDate || '未設定'} | 實際繳交日：${submitDateStr}</div>
             </div>
-            <div class="flex items-center gap-2 self-end sm:self-center">
-              <span class="font-bold text-xs px-2 py-1 bg-white/80 rounded-xl shadow-xs">${statusText}</span>
+            <div class="flex items-center gap-2">
+              <span class="px-2.5 py-1 rounded-xl text-xs font-extrabold">${statusText}</span>
               ${correctedBadge}
             </div>
           </div>`;
       });
     }
 
-    function deleteStudentHistoryRecord(stId, recordId) {
-      ensureStudentsObject();
-      const st = appData.students[stId];
-      if (!st || !st.history) return;
-
-      const idx = st.history.findIndex(h => h.id === recordId);
-      if (idx === -1) return;
-
-      const record = st.history[idx];
-
-      showCustomConfirm(`確定要刪除這筆紀錄嗎？\n[${record.reason}] (${record.amount >= 0 ? '+' : ''}${record.amount})\n系統將會自動扣回/補回該筆金額。`, function() {
-        st.balance -= record.amount;
-
-        if (record.hwId && record.date) {
-          if (appData.hwRecords && appData.hwRecords[record.date] && appData.hwRecords[record.date][record.hwId]) {
-            delete appData.hwRecords[record.date][record.hwId][stId];
-          }
-        }
-
-        st.history.splice(idx, 1);
-
-        syncData();
-        openStudentHistoryModal(stId, true); 
-        
-        if (document.getElementById('asec-check') && !document.getElementById('asec-check').classList.contains('hidden')) {
-          renderCheckList();
-        }
-      });
-    }
-
-    function renderUI() {
-      ensureStudentsObject();
+    // 初始化下拉選單與畫面
+    function initUI() {
       document.getElementById('header-class-name').innerText = appData.config.className;
       document.getElementById('currency-tag').innerText = `貨幣：${appData.config.currencyName}`;
       document.getElementById('cfg-class-name').value = appData.config.className;
       document.getElementById('cfg-currency-name').value = appData.config.currencyName;
 
-      const studentArray = Object.values(appData.students).filter(s => s && s.name).sort((a,b)=>a.seat-b.seat);
-
-      const grid = document.getElementById('student-cards-grid');
-      grid.innerHTML = '';
-      studentArray.forEach(s => {
-        grid.innerHTML += `
-          <div onclick="openStudentHistoryModal('${s.id}', false)" class="bg-white p-4 rounded-2xl text-center border-2 border-stone-100 shadow-sm cursor-pointer hover:bg-rose-50 hover:border-rose-200 transition transform hover:-translate-y-1">
-            <div class="text-xs text-stone-400 font-bold">${s.seat} 號</div>
-            <div class="font-bold text-stone-700 text-base mt-0.5">${s.name}</div>
-            <div class="text-teal-600 font-extrabold mt-1 text-lg">${s.balance} <span class="text-xs">${appData.config.currencyName}</span></div>
-            <div class="text-[10px] text-stone-400 mt-1 font-bold">🔍 查詢作業與明細</div>
-          </div>`;
+      // 填充前台作業選擇選單
+      const submitSelect = document.getElementById('submit-hw-select');
+      submitSelect.innerHTML = '';
+      appData.homeworks.forEach(hw => {
+        submitSelect.innerHTML += `<option value="${hw.id}">${hw.title} (獎勵 ${hw.reward} ${appData.config.currencyName})</option>`;
       });
 
-      const adminStSelect = document.getElementById('admin-quick-student-select');
-      adminStSelect.innerHTML = '';
-      studentArray.forEach(s => {
-        const opt = `<option value="${s.id}">${s.seat} 號 ${s.name}</option>`;
-        adminStSelect.innerHTML += opt;
-      });
+      // 設定預設日期
+      const today = getTodayString();
+      const checkDateInput = document.getElementById('check-date-input');
+      if (checkDateInput && !checkDateInput.value) checkDateInput.value = today;
+
+      // 綁定條碼槍輸入事件
+      const barcodeInput = document.getElementById('barcode-input-field');
+      if (barcodeInput) {
+        barcodeInput.onkeydown = function(e) {
+          if (e.key === 'Enter') {
+            processBarcodeSubmit(this.value.trim());
+            this.value = '';
+          }
+        };
+      }
+      renderStudentCardsGrid();
+      renderHwRuleList();
+      renderQuickButtonRules();
+    }
+
+    function processBarcodeSubmit(seatStr) {
+      const seatNum = parseInt(seatStr);
+      if (isNaN(seatNum)) {
+        showAlert("❌ 無效的座號條碼格式，請重新刷卡或輸入。");
+        return;
+      }
+      ensureStudentsObject();
+      let targetStId = null;
+      for (const [id, st] of Object.entries(appData.students)) {
+        if (parseInt(st.seat) === seatNum) {
+          targetStId = id;
+          break;
+        }
+      }
+
+      if (!targetStId) {
+        showAlert(`❌ 找不到座號為 [${seatNum}] 的學生，請確認名單是否已建立！`);
+        return;
+      }
 
       const hwSelect = document.getElementById('submit-hw-select');
-      const checkHwSelect = document.getElementById('check-hw-select');
-      const hwRuleList = document.getElementById('hw-rule-list');
-      
-      hwSelect.innerHTML = ''; checkHwSelect.innerHTML = ''; hwRuleList.innerHTML = '';
-      
-      if (!appData.homeworks) appData.homeworks = [];
-      appData.homeworks.forEach(h => {
-        const opt = `<option value="${h.id}">${h.title} (佈達: ${h.assignDate || '未定'}) (+${h.reward} ${appData.config.currencyName})</option>`;
-        hwSelect.innerHTML += opt;
-        checkHwSelect.innerHTML += opt;
+      const hwId = hwSelect.value;
+      const hwObj = appData.homeworks.find(h => h.id === hwId);
+      if (!hwObj) {
+        showAlert("❌ 請先選擇一項有效的作業項目！");
+        return;
+      }
 
-        hwRuleList.innerHTML += `
-          <li class="p-3 bg-white border-2 border-stone-100 rounded-2xl flex justify-between items-center shadow-sm">
+      const today = getTodayString();
+      if (!appData.hwRecords[today]) appData.hwRecords[today] = {};
+      if (!appData.hwRecords[today][hwId]) appData.hwRecords[today][hwId] = {};
+
+      const currentRecord = appData.hwRecords[today][hwId][targetStId];
+      const isAlreadyDone = currentRecord && (currentRecord === 'done' || currentRecord.status === 'done');
+
+      if (isAlreadyDone) {
+        showAlert(`⚠️ ${appData.students[targetStId].name} (座號 ${seatNum}) 的「${hwObj.title}」今天已經完成繳交過囉！`);
+        return;
+      }
+
+      // 登記已繳交並發放獎勵
+      appData.hwRecords[today][hwId][targetStId] = { status: 'done', corrected: true };
+      appData.students[targetStId].balance = (appData.students[targetStId].balance || 0) + Number(hwObj.reward);
+      addStudentHistory(targetStId, `繳交作業：${hwObj.title}`, Number(hwObj.reward), hwId, today);
+
+      saveDataToStorage();
+      showAlert(`🎉 成功登錄！\n學生：${appData.students[targetStId].name} (座號 ${seatNum})\n作業：${hwObj.title}\n獲得獎勵：+${hwObj.reward} ${appData.config.currencyName}`);
+    }
+
+    function renderStudentCardsGrid() {
+      ensureStudentsObject();
+      const grid = document.getElementById('student-cards-grid');
+      grid.innerHTML = '';
+
+      const stEntries = Object.entries(appData.students);
+      if (stEntries.length === 0) {
+        grid.innerHTML = `<div class="col-span-full text-center text-stone-400 py-10 font-bold">目前尚無學生資料，請至「教師後台 ➔ 學生與明細管理」新增或匯入學生名單。</div>`;
+        return;
+      }
+
+      // 依座號排序
+      stEntries.sort((a, b) => Number(a[1].seat) - Number(b[1].seat));
+
+      stEntries.forEach(([id, st]) => {
+        grid.innerHTML += `
+          <div onclick="openStudentHistoryModal('${id}', false)" class="bubble-card p-4 text-center cursor-pointer hover:scale-105 transition cute-shadow bg-white flex flex-col justify-between">
             <div>
-              <span class="font-bold text-stone-700">${h.title}</span>
-              <div class="text-xs text-stone-400">指派日期: ${h.assignDate || '未設定'} | 獎勵: +${h.reward} ${appData.config.currencyName}</div>
+              <div class="text-xs text-stone-400 font-bold mb-1">${st.seat} 號</div>
+              <div class="text-base font-extrabold text-stone-800 mb-2 truncate">${st.name}</div>
             </div>
-            <button onclick="deleteHomework('${h.id}')" class="text-xs bg-rose-100 text-rose-500 px-2.5 py-1.5 rounded-xl hover:bg-rose-200 font-bold">🗑️ 刪除</button>
-          </li>`;
-      });
-
-      const qbRuleList = document.getElementById('qb-rule-list');
-      qbRuleList.innerHTML = '';
-      if (!appData.quickButtons) appData.quickButtons = [];
-      appData.quickButtons.forEach(q => {
-        const isPos = q.amount >= 0;
-        const badgeColor = isPos ? 'text-amber-600' : 'text-rose-500 font-extrabold';
-        const displaySign = isPos ? '+' : '';
-
-        qbRuleList.innerHTML += `
-          <li class="p-3 bg-white border-2 border-stone-100 rounded-2xl flex justify-between items-center shadow-sm">
-            <span class="font-bold text-stone-700">${q.name} <span class="${badgeColor} text-xs">(${displaySign}${q.amount} ${appData.config.currencyName})</span></span>
-            <div class="flex gap-1.5">
-              <button onclick="openEditQuickButtonModal('${q.id}')" class="text-xs bg-stone-100 hover:bg-stone-200 text-stone-600 px-2.5 py-1.5 rounded-xl font-bold">✏️ 編輯</button>
-              <button onclick="deleteQuickButton('${q.id}')" class="text-xs bg-rose-100 text-rose-500 hover:bg-rose-200 px-2.5 py-1.5 rounded-xl font-bold">🗑️ 刪除</button>
-            </div>
-          </li>`;
-      });
-
-      const adminStList = document.getElementById('admin-student-list');
-      adminStList.innerHTML = '';
-      studentArray.forEach(s => {
-        adminStList.innerHTML += `
-          <div class="p-3.5 bg-white border-2 border-stone-100 rounded-2xl space-y-2.5 shadow-sm">
-            <div class="flex justify-between items-center">
-              <div>
-                <span class="text-xs text-stone-400 font-bold">${s.seat}號</span>
-                <span class="font-bold text-stone-700 ml-1">${s.name}</span>
-              </div>
-              <div class="flex gap-1">
-                <button onclick="openEditStudentModal('${s.id}')" class="text-xs bg-stone-100 hover:bg-stone-200 text-stone-600 px-2.5 py-1 rounded-xl font-bold">✏️ 編輯</button>
-                <button onclick="deleteStudent('${s.id}')" class="text-xs bg-rose-50 text-rose-500 hover:bg-rose-100 px-2.5 py-1 rounded-xl font-bold">🗑️ 刪除</button>
-              </div>
-            </div>
-            <div class="flex gap-2">
-              <div onclick="openStudentHistoryModal('${s.id}', true)" class="flex-1 p-2.5 bg-amber-50 rounded-xl flex justify-between items-center cursor-pointer hover:bg-amber-100 transition">
-                <span class="text-xs font-bold text-amber-700">明細/刪除紀錄 ➔</span>
-              </div>
-              <div onclick="openAdjustModal('${s.id}')" class="flex-1 p-2.5 bg-teal-50 rounded-xl flex justify-between items-center cursor-pointer hover:bg-teal-100 transition">
-                <span class="text-xs font-bold text-teal-700">手動加減分 ➔</span>
-              </div>
+            <div class="text-lg font-black text-amber-500">
+              ${st.balance || 0} <span class="text-xs">${appData.config.currencyName}</span>
             </div>
           </div>`;
       });
+    }
 
-      const qContainer = document.getElementById('quick-btn-container');
-      qContainer.innerHTML = '';
-      appData.quickButtons.forEach(q => {
-        const isPos = q.amount >= 0;
-        const btnColor = isPos ? 'bg-white hover:bg-amber-100 text-amber-800 border-amber-200' : 'bg-rose-50 hover:bg-rose-100 text-rose-600 border-rose-200';
-        const displaySign = isPos ? '+' : '';
+    function renderHwRuleList() {
+      const list = document.getElementById('hw-rule-list');
+      const checkSelect = document.getElementById('check-hw-select');
+      list.innerHTML = '';
+      if (checkSelect) checkSelect.innerHTML = '';
 
-        qContainer.innerHTML += `
-          <button onclick="triggerQuickReward('${q.name}', ${q.amount})" class="px-4 py-2.5 rounded-2xl font-bold text-sm border-2 shadow-sm transition transform active:scale-95 ${btnColor}">
-            ${q.name} (${displaySign}${q.amount})
+      appData.homeworks.forEach((hw, idx) => {
+        list.innerHTML += `
+          <li class="flex justify-between items-center p-3 bg-white border-2 border-stone-100 rounded-xl">
+            <div>
+              <span class="font-bold text-stone-800">${hw.title}</span>
+              <span class="text-xs text-teal-600 ml-2 font-bold">+${hw.reward} ${appData.config.currencyName}</span>
+              <div class="text-[11px] text-stone-400">指派日期：${hw.assignDate || '未設定'}</div>
+            </div>
+            <button onclick="deleteHomework('${hw.id}')" class="text-xs bg-rose-100 text-rose-600 px-2 py-1 rounded-lg font-bold hover:bg-rose-200">刪除</button>
+          </li>`;
+
+        if (checkSelect) {
+          checkSelect.innerHTML += `<option value="${hw.id}">${hw.title} (獎勵 ${hw.reward} 元)</option>`;
+        }
+      });
+    }
+
+    function addHomework() {
+      const title = document.getElementById('new-hw-title').value.trim();
+      const assignDate = document.getElementById('new-hw-assign-date').value || getTodayString();
+      const reward = parseInt(document.getElementById('new-hw-reward').value) || 30;
+
+      if (!title) {
+        showAlert("請輸入作業名稱！");
+        return;
+      }
+
+      const newId = 'hw_' + Date.now();
+      appData.homeworks.push({ id: newId, title, reward, assignDate });
+      document.getElementById('new-hw-title').value = '';
+      saveDataToStorage();
+      initUI();
+      showAlert("✅ 成功新增作業項目！");
+    }
+
+    function deleteHomework(hwId) {
+      showCustomConfirm("確定要刪除這項作業規則嗎？", function() {
+        appData.homeworks = appData.homeworks.filter(h => h.id !== hwId);
+        saveDataToStorage();
+        initUI();
+      });
+    }
+
+    function renderQuickButtonRules() {
+      const list = document.getElementById('qb-rule-list');
+      list.innerHTML = '';
+      appData.quickButtons.forEach(qb => {
+        const sign = qb.amount >= 0 ? '+' : '';
+        const color = qb.amount >= 0 ? 'text-teal-600' : 'text-rose-500';
+        list.innerHTML += `
+          <li class="flex justify-between items-center p-3 bg-white border-2 border-amber-100 rounded-xl">
+            <div>
+              <span class="font-bold text-stone-800">${qb.name}</span>
+              <span class="text-xs ${color} ml-2 font-bold">${sign}${qb.amount}</span>
+            </div>
+            <button onclick="deleteQuickButton('${qb.id}')" class="text-xs bg-rose-100 text-rose-600 px-2 py-1 rounded-lg font-bold hover:bg-rose-200">刪除</button>
+          </li>`;
+      });
+    }
+
+    function addQuickButton() {
+      const name = document.getElementById('new-qb-name').value.trim();
+      const amount = parseInt(document.getElementById('new-qb-amount').value);
+
+      if (!name || isNaN(amount)) {
+        showAlert("請輸入完整的項目名稱與正確金額！");
+        return;
+      }
+
+      const newId = 'q_' + Date.now();
+      appData.quickButtons.push({ id: newId, name, amount });
+      document.getElementById('new-qb-name').value = '';
+      saveDataToStorage();
+      renderQuickButtonRules();
+      showAlert("✅ 成功新增快捷項目！");
+    }
+
+    function deleteQuickButton(qbId) {
+      showCustomConfirm("確定要刪除這個快捷項目嗎？", function() {
+        appData.quickButtons = appData.quickButtons.filter(q => q.id !== qbId);
+        saveDataToStorage();
+        renderQuickButtonRules();
+      });
+    }
+
+    function renderAdminQuickSection() {
+      ensureStudentsObject();
+      const select = document.getElementById('admin-quick-student-select');
+      select.innerHTML = '<option value="">-- 請選擇學生 --</option>';
+
+      const stEntries = Object.entries(appData.students);
+      stEntries.sort((a, b) => Number(a[1].seat) - Number(b[1].seat));
+      stEntries.forEach(([id, st]) => {
+        select.innerHTML += `<option value="${id}">${st.seat} 號 - ${st.name}</option>`;
+      });
+
+      const container = document.getElementById('quick-btn-container');
+      container.innerHTML = '';
+      appData.quickButtons.forEach(qb => {
+        const sign = qb.amount >= 0 ? '+' : '';
+        const btnBg = qb.amount >= 0 ? 'bg-teal-500 hover:bg-teal-600' : 'bg-rose-500 hover:bg-rose-600';
+        container.innerHTML += `
+          <button onclick="applyQuickAction('${qb.name}', ${qb.amount})" class="px-4 py-2.5 rounded-xl text-white font-bold text-sm ${btnBg} shadow-sm transition">
+            ${qb.name} (${sign}${qb.amount})
           </button>`;
       });
     }
 
-    function addNewStudent() {
+    function applyQuickAction(reason, amount) {
+      const stId = document.getElementById('admin-quick-student-select').value;
+      if (!stId) {
+        showAlert("請先選擇要加減分的學生！");
+        return;
+      }
       ensureStudentsObject();
-      const seatVal = document.getElementById('new-st-seat').value.trim();
-      const nameVal = document.getElementById('new-st-name').value.trim();
+      const st = appData.students[stId];
+      if (!st) return;
 
-      const seat = parseInt(seatVal);
-      if (isNaN(seat) || !nameVal) {
-        return showAlert('⚠️ 請填寫正確的座號與姓名！');
+      st.balance = (st.balance || 0) + Number(amount);
+      addStudentHistory(stId, reason, Number(amount));
+      saveDataToStorage();
+      renderAdminQuickSection();
+      showAlert(`✅ 已成功對 [${st.seat}號 ${st.name}] 執行「${reason}」(${amount > 0 ? '+' + amount : amount} 元)！`);
+    }
+
+    function renderCheckList() {
+      const hwId = document.getElementById('check-hw-select').value;
+      const dateStr = document.getElementById('check-date-input').value || getTodayString();
+      const grid = document.getElementById('check-grid');
+      const summaryBox = document.getElementById('unsubmitted-summary-box');
+      grid.innerHTML = '';
+
+      if (!hwId) {
+        summaryBox.innerHTML = "📌 請先選擇作業項目";
+        return;
       }
 
-      const id = 's' + seat;
-      appData.students[id] = {
-        id: id,
-        seat: seat,
-        name: nameVal,
-        balance: appData.students[id]?.balance || 0,
-        history: appData.students[id]?.history || []
-      };
+      ensureStudentsObject();
+      const stEntries = Object.entries(appData.students);
+      stEntries.sort((a, b) => Number(a[1].seat) - Number(b[1].seat));
+
+      if (stEntries.length === 0) {
+        grid.innerHTML = `<div class="col-span-full text-center text-stone-400 py-6 font-bold">尚無學生名單</div>`;
+        summaryBox.innerHTML = "📌 尚無學生名單";
+        return;
+      }
+
+      if (!appData.hwRecords[dateStr]) appData.hwRecords[dateStr] = {};
+      if (!appData.hwRecords[dateStr][hwId]) appData.hwRecords[dateStr][hwId] = {};
+      const hwMap = appData.hwRecords[dateStr][hwId];
+
+      let unsubmittedSeats = [];
+
+      stEntries.forEach(([stId, st]) => {
+        const record = hwMap[stId];
+        const status = typeof record === 'object' ? record.status : (record || 'none');
+        const corrected = typeof record === 'object' ? !!record.corrected : (record === 'done');
+
+        if (status === 'none') {
+          unsubmittedSeats.push(`${st.seat}號(${st.name})`);
+        }
+
+        let cardBg = 'bg-white border-stone-200';
+        if (status === 'done') cardBg = 'bg-teal-50/70 border-teal-300';
+        else if (status === 'fix') cardBg = 'bg-amber-50/70 border-amber-300';
+
+        grid.innerHTML += `
+          <div class="p-3.5 rounded-2xl border-2 ${cardBg} flex flex-col justify-between gap-2 shadow-sm">
+            <div class="flex justify-between items-center">
+              <span class="font-extrabold text-stone-800 text-sm">${st.seat} 號 - ${st.name}</span>
+              <select onchange="updateCheckStatus('${stId}', '${hwId}', '${dateStr}', this.value)" class="p-1.5 rounded-xl text-xs font-bold border-2 border-stone-200 bg-white">
+                <option value="none" ${status === 'none' ? 'selected' : ''}>🔴 未交</option>
+                <option value="done" ${status === 'done' ? 'selected' : ''}>🟢 已交</option>
+                <option value="fix" ${status === 'fix' ? 'selected' : ''}>🟡 需訂正</option>
+              </select>
+            </div>
+            <div class="flex justify-between items-center text-xs pt-1 border-t border-stone-100">
+              <label class="flex items-center gap-1 font-bold text-stone-600 cursor-pointer">
+                <input type="checkbox" ${corrected ? 'checked' : ''} onchange="toggleCorrectedStatus('${stId}', '${hwId}', '${dateStr}', this.checked)" class="w-4 h-4 rounded text-teal-500">
+                訂正完成
+              </label>
+              <span class="text-[11px] text-stone-400 font-medium">${status === 'done' ? '已繳交' : (status === 'fix' ? '未訂正' : '未交')}</span>
+            </div>
+          </div>`;
+      });
+
+      if (unsubmittedSeats.length === 0) {
+        summaryBox.innerHTML = `🎉 太棒了！${dateStr} 這項作業全班都已經繳交完畢！`;
+        summaryBox.className = "bg-teal-50 border-2 border-teal-200 p-4 rounded-2xl text-xs text-teal-800 font-bold";
+      } else {
+        summaryBox.innerHTML = `📌 ${dateStr} 未交名單（共 ${unsubmittedSeats.length} 人）：${unsubmittedSeats.join('、 ')}`;
+        summaryBox.className = "bg-rose-50 border-2 border-rose-200 p-4 rounded-2xl text-xs text-rose-800 font-bold";
+      }
+    }
+
+    function updateCheckStatus(stId, hwId, dateStr, statusVal) {
+      if (!appData.hwRecords[dateStr]) appData.hwRecords[dateStr] = {};
+      if (!appData.hwRecords[dateStr][hwId]) appData.hwRecords[dateStr][hwId] = {};
+
+      const oldRecord = appData.hwRecords[dateStr][hwId][stId];
+      const oldStatus = typeof oldRecord === 'object' ? oldRecord.status : (oldRecord || 'none');
+
+      const hwObj = appData.homeworks.find(h => h.id === hwId);
+      const reward = hwObj ? Number(hwObj.reward) : 30;
+
+      // 如果從未交變更為已交，發放獎勵
+      if (oldStatus !== 'done' && statusVal === 'done') {
+        appData.hwRecords[dateStr][hwId][stId] = { status: 'done', corrected: true };
+        if (appData.students[stId]) {
+          appData.students[stId].balance = (appData.students[stId].balance || 0) + reward;
+          addStudentHistory(stId, `繳交作業：${hwObj ? hwObj.title : '作業'}`, reward, hwId, dateStr);
+        }
+      } 
+      // 如果從已交變更為未交或需訂正，扣回獎勵
+      else if (oldStatus === 'done' && statusVal !== 'done') {
+        appData.hwRecords[dateStr][hwId][stId] = { status: statusVal, corrected: false };
+        if (appData.students[stId]) {
+          appData.students[stId].balance = (appData.students[stId].balance || 0) - reward;
+          addStudentHistory(stId, `取消繳交/退回：${hwObj ? hwObj.title : '作業'}`, -reward, hwId, dateStr);
+        }
+      } else {
+        appData.hwRecords[dateStr][hwId][stId] = { status: statusVal, corrected: (statusVal === 'done') };
+      }
+
+      saveDataToStorage();
+      renderCheckList();
+    }
+
+    function toggleCorrectedStatus(stId, hwId, dateStr, isCorrected) {
+      if (!appData.hwRecords[dateStr]) appData.hwRecords[dateStr] = {};
+      if (!appData.hwRecords[dateStr][hwId]) appData.hwRecords[dateStr][hwId] = {};
+
+      let record = appData.hwRecords[dateStr][hwId][stId];
+      if (!record) {
+        record = { status: 'done', corrected: isCorrected };
+      } else if (typeof record === 'string') {
+        record = { status: record, corrected: isCorrected };
+      } else {
+        record.corrected = isCorrected;
+      }
+      appData.hwRecords[dateStr][hwId][stId] = record;
+      saveDataToStorage();
+    }
+
+    function setAllCheckStatus(statusVal) {
+      const hwId = document.getElementById('check-hw-select').value;
+      const dateStr = document.getElementById('check-date-input').value || getTodayString();
+      if (!hwId) return;
+
+      const hwObj = appData.homeworks.find(h => h.id === hwId);
+      const reward = hwObj ? Number(hwObj.reward) : 30;
+
+      ensureStudentsObject();
+      if (!appData.hwRecords[dateStr]) appData.hwRecords[dateStr] = {};
+      if (!appData.hwRecords[dateStr][hwId]) appData.hwRecords[dateStr][hwId] = {};
+
+      Object.keys(appData.students).forEach(stId => {
+        const oldRecord = appData.hwRecords[dateStr][hwId][stId];
+        const oldStatus = typeof oldRecord === 'object' ? oldRecord.status : (oldRecord || 'none');
+
+        if (oldStatus !== 'done' && statusVal === 'done') {
+          appData.hwRecords[dateStr][hwId][stId] = { status: 'done', corrected: true };
+          appData.students[stId].balance = (appData.students[stId].balance || 0) + reward;
+          addStudentHistory(stId, `繳交作業：${hwObj ? hwObj.title : '作業'}`, reward, hwId, dateStr);
+        } else if (oldStatus === 'done' && statusVal === 'none') {
+          appData.hwRecords[dateStr][hwId][stId] = { status: 'none', corrected: false };
+          appData.students[stId].balance = (appData.students[stId].balance || 0) - reward;
+          addStudentHistory(stId, `取消繳交/退回：${hwObj ? hwObj.title : '作業'}`, -reward, hwId, dateStr);
+        }
+      });
+
+      saveDataToStorage();
+      renderCheckList();
+      showAlert("✅ 已批次更新全班作業狀態！");
+    }
+
+    function renderAdminStudentList() {
+      ensureStudentsObject();
+      const list = document.getElementById('admin-student-list');
+      list.innerHTML = '';
+
+      const stEntries = Object.entries(appData.students);
+      stEntries.sort((a, b) => Number(a[1].seat) - Number(b[1].seat));
+
+      if (stEntries.length === 0) {
+        list.innerHTML = `<div class="col-span-full text-center text-stone-400 py-6 font-bold">尚無學生名單</div>`;
+        return;
+      }
+
+      stEntries.forEach(([id, st]) => {
+        list.innerHTML += `
+          <div class="bubble-card p-4 bg-white flex justify-between items-center shadow-sm">
+            <div>
+              <div class="font-extrabold text-stone-800">${st.seat} 號 - ${st.name}</div>
+              <div class="text-xs text-amber-600 font-bold">資產：${st.balance || 0} ${appData.config.currencyName}</div>
+            </div>
+            <div class="flex gap-1">
+              <button onclick="openStudentHistoryModal('${id}', true)" class="px-2.5 py-1 bg-stone-100 text-stone-700 rounded-lg text-xs font-bold hover:bg-stone-200">明細</button>
+              <button onclick="openEditStudentModal('${id}')" class="px-2.5 py-1 bg-amber-100 text-amber-700 rounded-lg text-xs font-bold hover:bg-amber-200">編輯</button>
+              <button onclick="deleteStudent('${id}')" class="px-2.5 py-1 bg-rose-100 text-rose-600 rounded-lg text-xs font-bold hover:bg-rose-200">刪除</button>
+            </div>
+          </div>`;
+      });
+    }
+
+    function addNewStudent() {
+      const seat = document.getElementById('new-st-seat').value.trim();
+      const name = document.getElementById('new-st-name').value.trim();
+
+      if (!seat || !name) {
+        showAlert("請輸入完整的座號與姓名！");
+        return;
+      }
+
+      ensureStudentsObject();
+      const newId = 'st_' + Date.now() + '_' + Math.floor(Math.random()*1000);
+      appData.students[newId] = { seat: Number(seat), name: name, balance: 0, history: [] };
 
       document.getElementById('new-st-seat').value = '';
       document.getElementById('new-st-name').value = '';
+      saveDataToStorage();
+      renderAdminStudentList();
+      showAlert("✅ 成功新增學生！");
+    }
 
-      syncData();
-      showAlert(`🎉 成功新增學生：${seat} 號 ${nameVal}`);
+    function deleteStudent(stId) {
+      showCustomConfirm("確定要刪除這位學生嗎？", function() {
+        delete appData.students[stId];
+        saveDataToStorage();
+        renderAdminStudentList();
+      });
+    }
+
+    function confirmClearAllStudents() {
+      showCustomConfirm("⚠️ 確定要清空全班所有學生名單嗎？此動作無法復原！", function() {
+        appData.students = {};
+        saveDataToStorage();
+        renderAdminStudentList();
+        showAlert("✅ 已清空全班學生名單。");
+      });
+    }
+
+    function openEditStudentModal(stId) {
+      ensureStudentsObject();
+      const st = appData.students[stId];
+      if (!st) return;
+      document.getElementById('edit-st-id').value = stId;
+      document.getElementById('edit-st-name-input').value = st.name;
+      openModal('modal-edit-student');
+    }
+
+    function saveStudentName() {
+      const stId = document.getElementById('edit-st-id').value;
+      const newName = document.getElementById('edit-st-name-input').value.trim();
+      if (!newName) {
+        showAlert("學生姓名不能為空！");
+        return;
+      }
+      ensureStudentsObject();
+      if (appData.students[stId]) {
+        appData.students[stId].name = newName;
+        saveDataToStorage();
+        renderAdminStudentList();
+        closeModal('modal-edit-student');
+      }
+    }
+
+    function deleteStudentHistoryRecord(stId, recordId) {
+      showCustomConfirm("確定要刪除這筆加減分紀錄嗎？系統會自動幫您扣回/補回對應的金額。", function() {
+        ensureStudentsObject();
+        const st = appData.students[stId];
+        if (!st || !st.history) return;
+
+        const idx = st.history.findIndex(h => h.id === recordId);
+        if (idx !== -1) {
+          const rec = st.history[idx];
+          st.balance = (st.balance || 0) - Number(rec.amount);
+          st.history.splice(idx, 1);
+          saveDataToStorage();
+          openStudentHistoryModal(stId, true);
+        }
+      });
     }
 
     function processBatchInput() {
+      const raw = document.getElementById('batch-excel-input').value.trim();
+      if (!raw) {
+        showAlert("請先貼上學生名單資料！");
+        return;
+      }
+      const lines = raw.split('\n');
       ensureStudentsObject();
-      const rawText = document.getElementById('batch-excel-input').value;
-      if (!rawText.trim()) return showAlert('⚠️ 輸入框是空的，請先貼上內容！');
-
       let count = 0;
-      const lines = rawText.split(/\r?\n/);
 
       lines.forEach(line => {
-        const cleanedLine = line.trim();
-        if (!cleanedLine) return;
-
-        const parts = cleanedLine.split(/[\t,,\s]+/);
+        const parts = line.trim().split(/\s+/);
         if (parts.length >= 2) {
           const seat = parseInt(parts[0]);
-          const name = parts[1].trim();
-
-          if (!isNaN(seat) && name && name !== '姓名' && name !== '座號') {
-            const id = 's' + seat;
-            appData.students[id] = {
-              id: id,
-              seat: seat,
-              name: name,
-              balance: appData.students[id]?.balance || 0,
-              history: appData.students[id]?.history || []
-            };
+          const name = parts[1];
+          if (!isNaN(seat) && name) {
+            const newId = 'st_' + Date.now() + '_' + Math.floor(Math.random()*1000) + count;
+            appData.students[newId] = { seat: seat, name: name, balance: 0, history: [] };
             count++;
           }
         }
       });
 
-      if (count > 0) {
-        document.getElementById('batch-excel-input').value = '';
-        syncData();
-        showAlert(`🎉 成功匯入 ${count} 位學生！`);
-      } else {
-        showAlert('❌ 解析失敗！請確保每行格式類似：「1 張小明」或「1\t張小明」');
-      }
+      document.getElementById('batch-excel-input').value = '';
+      saveDataToStorage();
+      renderAdminStudentList();
+      showAlert(`✅ 成功批次匯入 ${count} 位學生！`);
     }
 
     function handleExcelUpload(e) {
@@ -824,525 +1153,118 @@
         try {
           const data = new Uint8Array(evt.target.result);
           const workbook = XLSX.read(data, { type: 'array' });
-          const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-          const rows = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
-          
-          let textResult = '';
-          rows.forEach(row => {
+          const firstSheet = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[firstSheet];
+          const json = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+          ensureStudentsObject();
+          let count = 0;
+          json.forEach(row => {
             if (row && row.length >= 2) {
-              textResult += `${row[0]}\t${row[1]}\n`;
+              const seat = parseInt(row[0]);
+              const name = String(row[1]).trim();
+              if (!isNaN(seat) && name && name !== 'undefined') {
+                const newId = 'st_' + Date.now() + '_' + Math.floor(Math.random()*1000) + count;
+                appData.students[newId] = { seat: seat, name: name, balance: 0, history: [] };
+                count++;
+              }
             }
           });
-          document.getElementById('batch-excel-input').value = textResult;
-          processBatchInput();
-        } catch(err) {
-          showAlert('解析 Excel 檔案失敗，請直接複製 Excel 文字貼上至框內！');
+
+          saveDataToStorage();
+          renderAdminStudentList();
+          showAlert(`✅ 成功透過 Excel 檔案匯入 ${count} 位學生！`);
+        } catch (err) {
+          showAlert("❌ 解析 Excel 檔案失敗，請確認格式是否正確。");
         }
       };
       reader.readAsArrayBuffer(file);
     }
 
-    // 教師後台：作業繳交點收簿與未交名單摘要
-    function renderCheckList() {
-      ensureStudentsObject();
-      const hwId = document.getElementById('check-hw-select').value;
-      const date = document.getElementById('check-date-input').value || getTodayString();
-      const grid = document.getElementById('check-grid');
-      const summaryBox = document.getElementById('unsubmitted-summary-box');
-      grid.innerHTML = '';
-
-      if (!hwId) {
-        grid.innerHTML = '<p class="text-stone-400 text-sm font-bold">請先新增作業項目！</p>';
-        summaryBox.innerHTML = '📌 請先選擇作業項目';
-        return;
-      }
-
-      if (!appData.hwRecords) appData.hwRecords = {};
-      if (!appData.hwRecords[date]) appData.hwRecords[date] = {};
-      if (!appData.hwRecords[date][hwId]) appData.hwRecords[date][hwId] = {};
-
-      const currentRecord = appData.hwRecords[date][hwId];
-      const studentArray = Object.values(appData.students).filter(s => s && s.name).sort((a,b)=>a.seat-b.seat);
-
-      let unsubmittedList = [];
-
-      studentArray.forEach(s => {
-        const entry = currentRecord[s.id];
-        // 兼容舊資料格式
-        let status = 'none';
-        let corrected = false;
-
-        if (typeof entry === 'object' && entry !== null) {
-          status = entry.status || 'none';
-          corrected = !!entry.corrected;
-        } else if (typeof entry === 'string') {
-          status = entry;
-        }
-
-        if (status === 'none') {
-          unsubmittedList.push(`${s.seat}號 ${s.name}`);
-        }
-
-        let bgClass = "bg-white border-stone-200";
-        if (status === 'done') bgClass = "bg-teal-50 border-teal-200";
-        if (status === 'fix') bgClass = "bg-amber-50 border-amber-200";
-
-        // 訂正是否完成開關按鈕樣式
-        const correctedBtnBg = corrected ? 'bg-teal-500 text-white shadow-sm' : 'bg-stone-100 text-stone-400 hover:bg-stone-200';
-        const correctedText = corrected ? '✨ 訂正已完成' : '⭕ 尚未訂正';
-
-        grid.innerHTML += `
-          <div class="p-3.5 border-2 rounded-2xl flex flex-col justify-between space-y-2.5 shadow-sm ${bgClass}">
-            <div class="flex justify-between items-center">
-              <div>
-                <span class="text-xs text-stone-400 font-bold">${s.seat}號</span>
-                <span class="font-bold text-stone-700 ml-1">${s.name}</span>
-              </div>
-            </div>
-            <div class="flex gap-1">
-              <button onclick="toggleStudentCheckStatus('${s.id}', 'done')" class="flex-1 py-1.5 rounded-xl text-xs font-bold transition ${status === 'done' ? 'bg-teal-400 text-white shadow-sm' : 'bg-stone-100 text-stone-500 hover:bg-teal-100'}">🟢 已完成</button>
-              <button onclick="toggleStudentCheckStatus('${s.id}', 'fix')" class="flex-1 py-1.5 rounded-xl text-xs font-bold transition ${status === 'fix' ? 'bg-amber-400 text-white shadow-sm' : 'bg-stone-100 text-stone-500 hover:bg-amber-100'}">🟡 未訂正</button>
-              <button onclick="toggleStudentCheckStatus('${s.id}', 'none')" class="flex-1 py-1.5 rounded-xl text-xs font-bold transition ${status === 'none' ? 'bg-rose-400 text-white shadow-sm' : 'bg-stone-100 text-stone-500 hover:bg-rose-100'}">🔴 未交</button>
-            </div>
-            <div class="pt-1 border-t border-stone-100 flex justify-between items-center">
-              <span class="text-[11px] text-stone-400 font-bold">老師手動判定訂正：</span>
-              <button onclick="toggleStudentCorrectedStatus('${s.id}')" class="px-3 py-1 rounded-xl text-xs font-bold transition ${correctedBtnBg}">${correctedText}</button>
-            </div>
-          </div>`;
-      });
-
-      // 更新未交名單摘要列
-      if (unsubmittedList.length === 0) {
-        summaryBox.className = "bg-teal-50 border-2 border-teal-200 p-4 rounded-2xl text-xs text-teal-800 font-bold";
-        summaryBox.innerHTML = `🎉 太棒了！此日期該作業全班皆已繳交完畢！`;
-      } else {
-        summaryBox.className = "bg-rose-50 border-2 border-rose-200 p-4 rounded-2xl text-xs text-rose-800 font-bold";
-        summaryBox.innerHTML = `📌 於 ${date} 尚未繳交此作業的學生名單（共 ${unsubmittedList.length} 人）：<span class="text-rose-900 font-extrabold ml-1">${unsubmittedList.join('、')}</span>`;
-      }
-    }
-
-    function toggleStudentCheckStatus(stId, targetStatus) {
-      const hwId = document.getElementById('check-hw-select').value;
-      const date = document.getElementById('check-date-input').value || getTodayString();
-      const hw = appData.homeworks.find(h => h.id === hwId);
-      if (!hw) return;
-
-      if (!appData.hwRecords) appData.hwRecords = {};
-      if (!appData.hwRecords[date]) appData.hwRecords[date] = {};
-      if (!appData.hwRecords[date][hwId]) appData.hwRecords[date][hwId] = {};
-
-      const existingEntry = appData.hwRecords[date][hwId][stId];
-      let oldStatus = 'none';
-      let corrected = false;
-
-      if (typeof existingEntry === 'object' && existingEntry !== null) {
-        oldStatus = existingEntry.status || 'none';
-        corrected = !!existingEntry.corrected;
-      } else if (typeof existingEntry === 'string') {
-        oldStatus = existingEntry;
-      }
-
-      if (oldStatus === targetStatus) return;
-
-      if (targetStatus === 'done' && oldStatus !== 'done') {
-        appData.students[stId].balance += hw.reward;
-        addStudentHistory(stId, `作業點收：${hw.title}`, hw.reward, hwId, date);
-      } else if (oldStatus === 'done' && targetStatus !== 'done') {
-        appData.students[stId].balance -= hw.reward;
-        if (appData.students[stId].history) {
-          const targetIdx = appData.students[stId].history.findIndex(h => h.hwId === hwId && h.date === date);
-          if (targetIdx !== -1) {
-            appData.students[stId].history.splice(targetIdx, 1);
-          }
-        }
-      }
-
-      appData.hwRecords[date][hwId][stId] = {
-        status: targetStatus,
-        corrected: corrected
-      };
-
-      syncData();
-      renderCheckList();
-    }
-
-    // 規則：作業訂正是否完成只能由老師去手動點選
-    function toggleStudentCorrectedStatus(stId) {
-      const hwId = document.getElementById('check-hw-select').value;
-      const date = document.getElementById('check-date-input').value || getTodayString();
-
-      if (!appData.hwRecords) appData.hwRecords = {};
-      if (!appData.hwRecords[date]) appData.hwRecords[date] = {};
-      if (!appData.hwRecords[date][hwId]) appData.hwRecords[date][hwId] = {};
-
-      let existingEntry = appData.hwRecords[date][hwId][stId];
-      let status = 'none';
-      let corrected = false;
-
-      if (typeof existingEntry === 'object' && existingEntry !== null) {
-        status = existingEntry.status || 'none';
-        corrected = !!existingEntry.corrected;
-      } else if (typeof existingEntry === 'string') {
-        status = existingEntry;
-      }
-
-      // 切換訂正狀態
-      const newCorrected = !corrected;
-
-      appData.hwRecords[date][hwId][stId] = {
-        status: status,
-        corrected: newCorrected
-      };
-
-      syncData();
-      renderCheckList();
-      showAlert(`✅ 已更新 ${appData.students[stId].name} 的作業訂正狀態為：${newCorrected ? '訂正完成' : '尚未訂正'}`);
-    }
-
-    function setAllCheckStatus(targetStatus) {
-      const hwId = document.getElementById('check-hw-select').value;
-      const date = document.getElementById('check-date-input').value || getTodayString();
-      const hw = appData.homeworks.find(h => h.id === hwId);
-      if (!hw) return;
-
-      if (!appData.hwRecords) appData.hwRecords = {};
-      if (!appData.hwRecords[date]) appData.hwRecords[date] = {};
-      if (!appData.hwRecords[date][hwId]) appData.hwRecords[date][hwId] = {};
-
-      Object.keys(appData.students).forEach(stId => {
-        const existingEntry = appData.hwRecords[date][hwId][stId];
-        let oldStatus = 'none';
-        let corrected = false;
-
-        if (typeof existingEntry === 'object' && existingEntry !== null) {
-          oldStatus = existingEntry.status || 'none';
-          corrected = !!existingEntry.corrected;
-        } else if (typeof existingEntry === 'string') {
-          oldStatus = existingEntry;
-        }
-
-        if (oldStatus !== targetStatus) {
-          if (targetStatus === 'done' && oldStatus !== 'done') {
-            appData.students[stId].balance += hw.reward;
-            addStudentHistory(stId, `作業點收：${hw.title}`, hw.reward, hwId, date);
-          } else if (oldStatus === 'done' && targetStatus !== 'done') {
-            appData.students[stId].balance -= hw.reward;
-            if (appData.students[stId].history) {
-              const targetIdx = appData.students[stId].history.findIndex(h => h.hwId === hwId && h.date === date);
-              if (targetIdx !== -1) appData.students[stId].history.splice(targetIdx, 1);
-            }
-          }
-          appData.hwRecords[date][hwId][stId] = {
-            status: targetStatus,
-            corrected: corrected
-          };
-        }
-      });
-
-      syncData();
-      renderCheckList();
-    }
-
-    function addHomework() {
-      const title = document.getElementById('new-hw-title').value.trim();
-      const assignDate = document.getElementById('new-hw-assign-date').value || getTodayString();
-      let rawReward = document.getElementById('new-hw-reward').value.trim().replace(/\+/g, '');
-      const reward = parseInt(rawReward);
-
-      if (!title || isNaN(reward)) return showAlert('⚠️ 請輸入有效的作業名稱與獎勵金額！');
-
-      if (!appData.homeworks) appData.homeworks = [];
-      const id = 'hw_' + Date.now();
-      appData.homeworks.push({ id, title, reward, assignDate });
-      
-      document.getElementById('new-hw-title').value = '';
-      document.getElementById('new-hw-reward').value = '30';
-      document.getElementById('new-hw-assign-date').value = '';
-      
-      syncData();
-      showAlert(`🎉 成功新增作業項目：「${title}」(指派日期: ${assignDate})！`);
-    }
-
-    function deleteHomework(hwId) {
-      showCustomConfirm('確定要刪除這項作業規則嗎？', function() {
-        appData.homeworks = appData.homeworks.filter(h => h.id !== hwId);
-        syncData();
-      });
-    }
-
-    function addQuickButton() {
-      const name = document.getElementById('new-qb-name').value.trim();
-      const rawAmountStr = document.getElementById('new-qb-amount').value.trim();
-      const amount = parseInt(rawAmountStr);
-
-      if (!name || isNaN(amount)) return showAlert('⚠️ 請輸入有效的項目名稱與金額（加分填正數，扣分填負數）！');
-
-      const id = 'qb_' + Date.now();
-      if (!appData.quickButtons) appData.quickButtons = [];
-      appData.quickButtons.push({ id, name, amount });
-
-      document.getElementById('new-qb-name').value = '';
-      document.getElementById('new-qb-amount').value = '20';
-
-      syncData();
-      showAlert(`🎉 成功新增項目：「${name} (${amount >= 0 ? '+' : ''}${amount})」！`);
-    }
-
-    function openEditQuickButtonModal(qbId) {
-      const qb = appData.quickButtons.find(q => q.id === qbId);
-      if (!qb) return;
-      document.getElementById('edit-qb-id').value = qb.id;
-      document.getElementById('edit-qb-name-input').value = qb.name;
-      document.getElementById('edit-qb-amount-input').value = qb.amount;
-      openModal('modal-edit-qb');
-    }
-
-    function saveQuickButtonEdit() {
-      const id = document.getElementById('edit-qb-id').value;
-      const name = document.getElementById('edit-qb-name-input').value.trim();
-      const rawAmountStr = document.getElementById('edit-qb-amount-input').value.trim();
-      const amount = parseInt(rawAmountStr);
-
-      if (!name || isNaN(amount)) return showAlert('請輸入有效的項目名稱與金額！');
-
-      const qb = appData.quickButtons.find(q => q.id === id);
-      if (qb) {
-        qb.name = name;
-        qb.amount = amount;
-        closeModal('modal-edit-qb');
-        syncData();
-      }
-    }
-
-    function deleteQuickButton(qbId) {
-      showCustomConfirm('確定要刪除這個項目嗎？', function() {
-        appData.quickButtons = appData.quickButtons.filter(q => q.id !== qbId);
-        syncData();
-      });
-    }
-
-    function openEditStudentModal(stId) {
-      document.getElementById('edit-st-id').value = stId;
-      document.getElementById('edit-st-name-input').value = appData.students[stId].name;
-      openModal('modal-edit-student');
-    }
-
-    function saveStudentName() {
-      const stId = document.getElementById('edit-st-id').value;
-      const newName = document.getElementById('edit-st-name-input').value.trim();
-      if (newName) {
-        appData.students[stId].name = newName;
-        closeModal('modal-edit-student');
-        syncData();
-      }
-    }
-
-    function deleteStudent(stId) {
-      const st = appData.students[stId];
-      showCustomConfirm(`確定要刪除 ${st.seat}號 ${st.name} 嗎？`, function() {
-        delete appData.students[stId];
-        syncData();
-      });
-    }
-
-    function confirmClearAllStudents() {
-      showCustomConfirm("⚠️ 確定要清空全班學生資料嗎？此動作無法撤銷！", function() {
-        appData.students = {};
-        syncData();
-      });
-    }
-
-    function openAdjustModal(stId) {
-      document.getElementById('adjust-student-id').value = stId;
-      document.getElementById('adjust-modal-title').innerText = `調整 ${appData.students[stId].name} 的資產`;
-      openModal('modal-adjust');
-    }
-
-    function submitStudentAdjust() {
-      const stId = document.getElementById('adjust-student-id').value;
-      const amount = parseInt(document.getElementById('adjust-amount').value);
-      const reason = document.getElementById('adjust-reason').value.trim() || '手動調整';
-
-      if (isNaN(amount)) return showAlert('請輸入有效數字！');
-      appData.students[stId].balance += amount;
-      addStudentHistory(stId, reason, amount);
-
-      document.getElementById('adjust-amount').value = '';
-      document.getElementById('adjust-reason').value = '';
-
-      closeModal('modal-adjust');
-      syncData();
-    }
-
-    function handleBarcodeSubmit(rawValue) {
-      const cleaned = rawValue.trim();
-      if (!cleaned) return;
-
-      let seatNum = parseInt(cleaned.replace(/[^\d]/g, ''));
-      if (isNaN(seatNum)) {
-        return showAlert(`⚠️ 找不到對應的座號：${cleaned}`);
-      }
-
-      const stId = 's' + seatNum;
-      ensureStudentsObject();
-      const student = appData.students[stId];
-
-      if (!student) {
-        return showAlert(`❌ 查無座號 ${seatNum} 的學生，請確認名單是否正確！`);
-      }
-
-      const hwId = document.getElementById('submit-hw-select').value;
-      const hw = appData.homeworks.find(h => h.id === hwId);
-      if (!hw) return showAlert('請先選擇要繳交的作業項目！');
-
-      const today = getTodayString();
-      if (!appData.hwRecords) appData.hwRecords = {};
-      if (!appData.hwRecords[today]) appData.hwRecords[today] = {};
-      if (!appData.hwRecords[today][hwId]) appData.hwRecords[today][hwId] = {};
-
-      const currentEntry = appData.hwRecords[today][hwId][stId];
-      let currentStatus = 'none';
-      if (typeof currentEntry === 'object' && currentEntry !== null) {
-        currentStatus = currentEntry.status || 'none';
-      } else if (typeof currentEntry === 'string') {
-        currentStatus = currentEntry;
-      }
-
-      if (currentStatus === 'done') {
-        showAlert(`⚠️ ${student.seat}號 ${student.name} 今天已經繳交過「${hw.title}」囉！`);
-        return;
-      }
-
-      student.balance += hw.reward;
-      addStudentHistory(stId, `條碼繳交：${hw.title}`, hw.reward, hwId, today);
-      
-      appData.hwRecords[today][hwId][stId] = {
-        status: 'done',
-        corrected: currentEntry?.corrected || false
-      };
-
-      syncData();
-      showAlert(`🎉 成功！${student.seat}號 ${student.name} 完成「${hw.title}」，獲得 +${hw.reward} ${appData.config.currencyName}！`);
-    }
-
-    function triggerQuickReward(reason, amount) {
-      const stId = document.getElementById('admin-quick-student-select').value;
-      if (!stId) return showAlert('請先選擇學生！');
-
-      appData.students[stId].balance += amount;
-      addStudentHistory(stId, `${amount >= 0 ? '課堂表揚' : '課堂扣分'}：${reason}`, amount);
-
-      const actionText = amount >= 0 ? `+${amount}` : `${amount}`;
-      showAlert(`🔔 ${appData.students[stId].name} 【${reason}】 ${actionText} ${appData.config.currencyName}！`);
-      syncData();
-    }
-
     function saveClassSettings() {
-      appData.config.className = document.getElementById('cfg-class-name').value;
-      appData.config.currencyName = document.getElementById('cfg-currency-name').value;
-      syncData();
-      showAlert('✅ 設定已更新！');
+      const cName = document.getElementById('cfg-class-name').value.trim();
+      const curr = document.getElementById('cfg-currency-name').value.trim();
+      if (cName) appData.config.className = cName;
+      if (curr) appData.config.currencyName = curr;
+
+      saveDataToStorage();
+      initUI();
+      showAlert("✅ 班級設定已成功儲存！");
     }
 
-    function syncData() {
-      ensureStudentsObject();
-      renderUI();
+    // 資料儲存與同步邏輯
+    function saveDataToStorage() {
       localStorage.setItem('class_space_data', JSON.stringify(appData));
       if (db) {
-        db.ref('appData').set(appData).catch(err => {
-          console.error("Firebase 同步失敗：", err);
-        });
+        db.ref('classData').set(appData).catch(err => console.error("Firebase sync error:", err));
       }
     }
 
-    function initFirebase(rawConfig) {
-      try {
-        let configObj = null;
-        if (typeof rawConfig === 'string') {
-          const jsonStr = rawConfig.replace(/const\s+firebaseConfig\s*=\s*/, '').replace(/;/g, '').trim();
-          configObj = eval('(' + jsonStr + ')');
-        } else {
-          configObj = rawConfig;
-        }
-
-        if (!configObj || !configObj.apiKey) throw new Error("無效的金鑰格式");
-
-        if (!firebase.apps.length) {
-          firebase.initializeApp(configObj);
-        }
-        db = firebase.database();
-
-        db.ref('appData').on('value', (snapshot) => {
-          val = snapshot.val();
-          if (val) {
-            appData = val;
-            ensureStudentsObject();
-            renderUI();
-            localStorage.setItem('class_space_data', JSON.stringify(appData));
-          }
-        });
-
-        const bar = document.getElementById('cloud-bar');
-        const status = document.getElementById('cloud-status');
-        bar.className = "mb-4 p-3 bg-teal-400 text-white rounded-2xl flex flex-col sm:flex-row justify-between items-center text-sm gap-2 shadow-sm font-bold";
-        status.innerText = "☁️ Firebase 雲端即時同步中";
-
-        return true;
-      } catch (err) {
-        console.error("Firebase 初始化失敗：", err);
-        return false;
-      }
-    }
-
-    function openFirebaseModal() { 
-      const stored = localStorage.getItem('firebase_config_raw') || '';
-      document.getElementById('firebase-config-input').value = stored;
-      openModal('modal-firebase'); 
-    }
-
-    function saveFirebaseConfig() {
-      const raw = document.getElementById('firebase-config-input').value.trim();
-      if (!raw) return showAlert('請貼上有效的 Firebase 設定！');
-
-      localStorage.setItem('firebase_config_raw', raw);
-      if (initFirebase(raw)) {
-        showAlert('🎉 Firebase 雲端連線成功！', function() {
-          closeModal('modal-firebase');
-        });
-      } else {
-        showAlert('❌ Firebase 金鑰格式錯誤或連線失敗，請檢查輸入內容！');
-      }
-    }
-
-    window.onload = function() {
-      const todayStr = getTodayString();
-      document.getElementById('check-date-input').value = todayStr;
-      const assignDateInput = document.getElementById('new-hw-assign-date');
-      if (assignDateInput) assignDateInput.value = todayStr;
-
+    function loadDataFromStorage() {
       const local = localStorage.getItem('class_space_data');
       if (local) {
         try {
           appData = JSON.parse(local);
-          ensureStudentsObject();
-        } catch(e){}
+        } catch(e) {}
       }
+      ensureStudentsObject();
+    }
 
-      const rawConfig = localStorage.getItem('firebase_config_raw');
-      if (rawConfig) initFirebase(rawConfig);
+    function openFirebaseModal() {
+      const raw = localStorage.getItem('firebase_config_raw') || '';
+      document.getElementById('firebase-config-input').value = raw;
+      openModal('modal-firebase');
+    }
 
-      const barcodeInput = document.getElementById('barcode-input-field');
-      if (barcodeInput) {
-        barcodeInput.addEventListener('keydown', function(e) {
-          if (e.key === 'Enter') {
-            const val = barcodeInput.value;
-            barcodeInput.value = '';
-            handleBarcodeSubmit(val);
+    function saveFirebaseConfig() {
+      const raw = document.getElementById('firebase-config-input').value.trim();
+      if (!raw) {
+        showAlert("請輸入 Firebase 設定 JSON！");
+        return;
+      }
+      try {
+        const configObj = JSON.parse(raw);
+        localStorage.setItem('firebase_config_raw', raw);
+        closeModal('modal-firebase');
+        initFirebase(configObj);
+        showAlert("✅ Firebase 金鑰已儲存並成功連線！");
+      } catch(err) {
+        showAlert("❌ JSON 格式錯誤，請重新確認。");
+      }
+    }
+
+    function initFirebase(configObj) {
+      try {
+        if (!firebase.apps.length) {
+          firebase.initializeApp(configObj);
+        }
+        db = firebase.database();
+        document.getElementById('cloud-status').innerText = "☁️ Firebase 雲端即時同步中";
+        document.getElementById('cloud-bar').className = "mb-4 p-3 bg-teal-400 text-white rounded-2xl flex flex-col sm:flex-row justify-between items-center text-sm gap-2 shadow-sm font-bold";
+
+        db.ref('classData').on('value', (snapshot) => {
+          const val = snapshot.val();
+          if (val) {
+            appData = val;
+            ensureStudentsObject();
+            initUI();
           }
         });
+      } catch(e) {
+        console.error("Firebase init failed:", e);
       }
+    }
 
-      renderUI();
+    window.onload = function() {
+      loadDataFromStorage();
+      initUI();
+
+      const raw = localStorage.getItem('firebase_config_raw');
+      if (raw) {
+        try {
+          initFirebase(JSON.parse(raw));
+        } catch(e) {}
+      }
     };
   </script>
 </body>
